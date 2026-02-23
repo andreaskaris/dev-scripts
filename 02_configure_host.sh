@@ -355,6 +355,11 @@ ANSIBLE_FORCE_COLOR=true ansible-playbook \
 if [ "$EXT_IF" ]; then
   sudo $IPTABLES -t nat -A POSTROUTING --out-interface $EXT_IF -j MASQUERADE
   sudo $IPTABLES -A FORWARD --in-interface ${BAREMETAL_NETWORK_NAME} -j ACCEPT
+  # Also add to DOCKER-USER in case Docker is installed and sets FORWARD policy to DROP
+  if sudo $IPTABLES -L DOCKER-USER -n &>/dev/null; then
+    sudo $IPTABLES -I DOCKER-USER --in-interface ${BAREMETAL_NETWORK_NAME} -j ACCEPT
+    sudo $IPTABLES -I DOCKER-USER --out-interface ${BAREMETAL_NETWORK_NAME} -j ACCEPT
+  fi
 fi
 
 # Switch NetworkManager to internal DNS

@@ -75,6 +75,13 @@ if [ "$MANAGE_BR_BRIDGE" == "y" ]; then
     sudo rm -f /etc/NetworkManager/system-connections/${BAREMETAL_NETWORK_NAME}.nmconnection
 fi
 
+# Clean up iptables FORWARD and DOCKER-USER rules for the baremetal network
+sudo $IPTABLES -D FORWARD --in-interface ${BAREMETAL_NETWORK_NAME} -j ACCEPT 2>/dev/null || true
+if sudo $IPTABLES -L DOCKER-USER -n &>/dev/null; then
+  sudo $IPTABLES -D DOCKER-USER --in-interface ${BAREMETAL_NETWORK_NAME} -j ACCEPT 2>/dev/null || true
+  sudo $IPTABLES -D DOCKER-USER --out-interface ${BAREMETAL_NETWORK_NAME} -j ACCEPT 2>/dev/null || true
+fi
+
 # Drop all ebtables rules
 sudo ebtables --flush
 
