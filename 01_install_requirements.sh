@@ -86,9 +86,8 @@ fi
 # Install ansible, other packages are installed via
 # vm-setup/install-package-playbook.yml
 case $DISTRO in
-  "centos8"|"rhel8"|"almalinux8"|"rocky8")
+  "centos8"|"almalinux8"|"rocky8")
     # install network-scripts package to be able to use legacy network commands
-    sudo dnf install -y network-scripts
     if [[ $DISTRO == "centos8" ]] && [[ "$NAME" != *"Stream"* ]]; then
         echo "CentOS is not supported, please switch to CentOS Stream / RHEL / Rocky / Alma"
         exit 1
@@ -111,7 +110,7 @@ case $DISTRO in
     sudo update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.9 1
     PYTHON_DEVEL="python39-devel"
     ;;
-  "centos9"|"rhel9"|"almalinux9"|"rocky9")
+  "centos9"|"rhel9"|"rhel10"|"almalinux9"|"rocky9")
     sudo dnf -y install python3-pip
     if [[ $DISTRO == "centos9" || $DISTRO == "almalinux9" || $DISTRO == "rocky9" ]] ; then
       sudo dnf config-manager --set-enabled crb

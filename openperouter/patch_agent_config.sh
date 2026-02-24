@@ -58,7 +58,7 @@ import yaml, sys
 with open('${AGENT_CONFIG}') as f:
     cfg = yaml.safe_load(f)
 
-cfg['rendezvousIP'] = '${BRIDGE_IP}'
+#cfg['rendezvousIP'] = '${BRIDGE_IP}'
 
 cfg['hosts'][0]['networkConfig'] = {
     'interfaces': [
