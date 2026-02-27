@@ -2,8 +2,15 @@ apiVersion: v1beta1
 kind: ApplianceConfig
 ocpRelease:
   version: "{{ version }}"
-  url: {{ image }} 
+  url: {{ image }}
 diskSizeGB: 200
 pullSecret: {{ pull_secret_contents }}
 sshKey: {{ ssh_pub_key }}
 userCorePass: core
+stopLocalRegistry: false
+{% if appliance_additional_images %}
+additionalImages:
+{% for img in appliance_additional_images.split(',') %}
+  - name: {{ img | trim }}
+{% endfor %}
+{% endif %}

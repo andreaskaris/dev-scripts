@@ -26,6 +26,11 @@ export ISCSI_DEVICE_NAME=${ISCSI_DEVICE_NAME:-"/dev/sdb"}
 # See: https://github.com/openshift/appliance
 export APPLIANCE_IMAGE=${APPLIANCE_IMAGE:-"quay.io/edge-infrastructure/openshift-appliance:latest"}
 
+# Comma-separated list of additional container images to pre-load into the appliance disk image.
+# These images will be available in the appliance's local registry at boot time.
+# Example: APPLIANCE_ADDITIONAL_IMAGES="quay.io/openperouter/router:main,quay.io/myorg/myimage:latest"
+export APPLIANCE_ADDITIONAL_IMAGES=${APPLIANCE_ADDITIONAL_IMAGES:-""}
+
 # Override command name in case of extraction
 export OPENSHIFT_INSTALLER_CMD="openshift-install"
 
