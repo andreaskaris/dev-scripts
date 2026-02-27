@@ -4,7 +4,8 @@ set -euxo pipefail
 # Patch agent-config.yaml for SNO with a linux bridge configuration.
 #
 # This script modifies the agent-config.yaml in ocp/${CLUSTER_NAME} to:
-#   - Create a linux bridge (br0) with a static IP in the 192.168.110.0/24 network
+#   - Keep the baremetal NIC with a static IP (192.168.111.80)
+#   - Create a standalone linux bridge (br0) with a static IP in the 192.168.110.0/24 network
 #   - Use the bridge IP as the rendezvousIP
 #   - Set the default gateway to 192.168.110.1 via the bridge
 #   - Add a systemd unit (openperouter-node-index.service) that extracts the last
@@ -23,9 +24,17 @@ BRIDGE_PREFIX="24"
 BRIDGE_GW="192.168.110.1"
 BRIDGE_NAME="br0"
 
+NIC_IP="192.168.111.80"
+NIC_PREFIX="24"
+
+BRIDGE_NETWORK="${BRIDGE_IP%.*}.0/${BRIDGE_PREFIX}"
+
 WORKING_DIR="${WORKING_DIR:-/opt/dev-scripts}"
 CLUSTER_NAME="${CLUSTER_NAME:-ostest}"
 AGENT_CONFIG="${WORKING_DIR}/ocp/${CLUSTER_NAME}/agent-config.yaml"
+INSTALL_CONFIG="${WORKING_DIR}/ocp/${CLUSTER_NAME}/install-config.yaml"
+
+NIC_NAME="enp2s0"
 
 if [ ! -f "${AGENT_CONFIG}" ]; then
   echo "ERROR: ${AGENT_CONFIG} not found. Run agent/05_agent_configure.sh first."
@@ -46,9 +55,11 @@ if [ -z "${MAC_ADDRESS}" ]; then
 fi
 
 echo "Patching ${AGENT_CONFIG}:"
+echo "  NIC:           ${NIC_NAME}"
 echo "  MAC:           ${MAC_ADDRESS}"
+echo "  NIC IP:        ${NIC_IP}/${NIC_PREFIX}"
 echo "  Bridge IP:     ${BRIDGE_IP}/${BRIDGE_PREFIX}"
-echo "  Gateway:       ${BRIDGE_GW}"
+echo "  Gateway:       ${BRIDGE_GW} (via ${BRIDGE_NAME})"
 echo "  RendezvousIP:  ${BRIDGE_IP}"
 
 # Generate the patched agent-config.yaml
@@ -58,10 +69,31 @@ import yaml, sys
 with open('${AGENT_CONFIG}') as f:
     cfg = yaml.safe_load(f)
 
-#cfg['rendezvousIP'] = '${BRIDGE_IP}'
+cfg['rendezvousIP'] = '${BRIDGE_IP}'
+
+# Fix the interface name from the template's hardcoded 'eth0' to the actual NIC name
+cfg['hosts'][0]['interfaces'][0]['name'] = '${NIC_NAME}'
 
 cfg['hosts'][0]['networkConfig'] = {
     'interfaces': [
+        {
+            'name': '${NIC_NAME}',
+            'type': 'ethernet',
+            'state': 'up',
+            'mac-address': '${MAC_ADDRESS}',
+            'ipv4': {
+                'enabled': True,
+                'address': [{'ip': '${NIC_IP}', 'prefix-length': ${NIC_PREFIX}}],
+                'dhcp': False,
+            },
+        },
+        {
+            'name': 'dummy0',
+            'type': 'dummy',
+            'state': 'up',
+            'ipv4': {'enabled': False},
+            'ipv6': {'enabled': False},
+        },
         {
             'name': '${BRIDGE_NAME}',
             'type': 'linux-bridge',
@@ -72,14 +104,8 @@ cfg['hosts'][0]['networkConfig'] = {
                 'dhcp': False,
             },
             'bridge': {
-                'port': [{'name': 'eth0'}],
+                'port': [{'name': 'dummy0'}],
             },
-        },
-        {
-            'name': 'eth0',
-            'type': 'ethernet',
-            'state': 'up',
-            'mac-address': '${MAC_ADDRESS}',
         },
     ],
     'dns-resolver': {
@@ -104,3 +130,23 @@ with open('${AGENT_CONFIG}', 'w') as f:
 "
 
 echo "Patched ${AGENT_CONFIG} successfully."
+
+# Patch install-config.yaml to set machineNetwork to the bridge subnet
+# so that nodeip-configuration picks the bridge IP and OVN uses br0 for br-ex
+if [ ! -f "${INSTALL_CONFIG}" ]; then
+  echo "WARNING: ${INSTALL_CONFIG} not found, skipping machineNetwork patch."
+else
+  python3 -c "
+import yaml, sys
+
+with open('${INSTALL_CONFIG}') as f:
+    cfg = yaml.safe_load(f)
+
+for entry in cfg['networking']['machineNetwork']:
+    entry['cidr'] = '${BRIDGE_NETWORK}'
+
+with open('${INSTALL_CONFIG}', 'w') as f:
+    yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
+"
+  echo "Patched ${INSTALL_CONFIG}: machineNetwork set to ${BRIDGE_NETWORK}"
+fi
