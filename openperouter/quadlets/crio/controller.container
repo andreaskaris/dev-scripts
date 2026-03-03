@@ -11,7 +11,7 @@ Documentation=https://github.com/openperouter
 
 [Container]
 # Container image - update this line to change versions
-Image=quay.io/openperouter/router:main
+Image=quay.io/fpaoline/router:dev1
 
 # Pod association - creates automatic dependency on controllerpod-pod.service
 Pod=controllerpod.pod
