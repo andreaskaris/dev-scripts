@@ -5,12 +5,11 @@ set -euo pipefail
 #
 # Sources:
 #   openperouter/quadlets/            - Quadlet unit files
-#   openperouter/quadlets/crio/       - CRI-O variant of controller.container
 #   openperouter/openpeconfig/        - OpenPERouter configuration files
 #
 # File mapping:
 #   quadlets/controllerpod.pod              -> /etc/containers/systemd/controllerpod.pod
-#   quadlets/crio/controller.container      -> /etc/containers/systemd/controller.container
+#   quadlets/controller.container            -> /etc/containers/systemd/controller.container
 #   quadlets/routerpod.pod                  -> /etc/containers/systemd/routerpod.pod
 #   quadlets/frr.container                  -> /etc/containers/systemd/frr.container
 #   quadlets/reloader.container             -> /etc/containers/systemd/reloader.container
@@ -65,7 +64,7 @@ add_file() {
 
 # Quadlet files -> /etc/containers/systemd/ (mode 0644)
 add_file "${QUADLETS_DIR}/controllerpod.pod"              "/etc/containers/systemd/controllerpod.pod"              420
-add_file "${QUADLETS_DIR}/crio/controller.container"      "/etc/containers/systemd/controller.container"           420
+add_file "${QUADLETS_DIR}/controller.container"            "/etc/containers/systemd/controller.container"           420
 add_file "${QUADLETS_DIR}/routerpod.pod"                  "/etc/containers/systemd/routerpod.pod"                  420
 add_file "${QUADLETS_DIR}/frr.container"                  "/etc/containers/systemd/frr.container"                  420
 add_file "${QUADLETS_DIR}/reloader.container"             "/etc/containers/systemd/reloader.container"             420

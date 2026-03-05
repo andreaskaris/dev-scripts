@@ -9,6 +9,7 @@ set -euo pipefail
 #   - A VXLAN interface (vni100) with VNI 100, neighbor suppression enabled
 #   - A linux bridge (br100) with vni100 as a port
 #   - A VRF "red" for L3 VNI routing
+#   - A dummy loopback in VRF "red" (advertised via redistribute connected)
 #   - An FRR container peering BGP EVPN with the node
 #
 # Usage:
@@ -31,6 +32,8 @@ VRF_NAME="red"
 VRF_TABLE=1100
 VXLAN_PORT=4789
 VTEP_LO="lo-vtep"
+VRF_LO="lo-vrf-${VRF_NAME}"
+VRF_LO_IP="${VRF_LO_IP:-10.100.0.1/32}"
 CONTAINER_NAME="externalfrr"
 FRR_IMAGE="${FRR_IMAGE:-quay.io/frrouting/frr:10.5.1}"
 FRR_CONF_DIR="${SCRIPTDIR}/config"
@@ -47,6 +50,7 @@ echo "  VNI:            ${VNI}"
 echo "  VRF:            ${VRF_NAME} (table ${VRF_TABLE})"
 echo "  VXLAN iface:    ${VXLAN_IF}"
 echo "  Bridge:         ${BRIDGE_IF}"
+echo "  VRF Loopback:   ${VRF_LO} (${VRF_LO_IP})"
 echo "  FRR image:      ${FRR_IMAGE}"
 echo ""
 
@@ -94,6 +98,17 @@ else
     sudo ip link set "${VXLAN_IF}" master "${BRIDGE_IF}"
     # Enable neighbor suppression on the VXLAN interface
     sudo bridge link set dev "${VXLAN_IF}" neigh_suppress on
+fi
+
+# --- VRF loopback interface ---
+echo "Creating VRF loopback ${VRF_LO} with ${VRF_LO_IP} in VRF ${VRF_NAME}..."
+if ip link show "${VRF_LO}" &>/dev/null; then
+    echo "  ${VRF_LO} already exists, skipping"
+else
+    sudo ip link add "${VRF_LO}" type dummy
+    sudo ip link set "${VRF_LO}" master "${VRF_NAME}"
+    sudo ip addr add "${VRF_LO_IP}" dev "${VRF_LO}"
+    sudo ip link set "${VRF_LO}" up
 fi
 
 # --- Generate FRR configuration ---

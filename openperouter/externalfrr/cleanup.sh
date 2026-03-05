@@ -12,6 +12,7 @@ VXLAN_IF="vni${VNI}"
 BRIDGE_IF="br${VNI}"
 VRF_NAME="red"
 VTEP_LO="lo-vtep"
+VRF_LO="lo-vrf-${VRF_NAME}"
 
 echo "Cleaning up external FRR..."
 
@@ -21,6 +22,15 @@ if sudo podman ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     sudo podman rm -f "${CONTAINER_NAME}"
 else
     echo "  Container '${CONTAINER_NAME}' not found, skipping"
+fi
+
+# Remove VRF loopback
+if ip link show "${VRF_LO}" &>/dev/null; then
+    echo "  Removing VRF loopback ${VRF_LO}..."
+    sudo ip link set "${VRF_LO}" down
+    sudo ip link del "${VRF_LO}"
+else
+    echo "  VRF loopback ${VRF_LO} not found, skipping"
 fi
 
 # Remove VXLAN from bridge
