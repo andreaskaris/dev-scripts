@@ -4,6 +4,7 @@ openshift-install.log
 logs/
 config_*.sh
 !config_example.sh
+!config_fpaoline.sh
 clouds.yaml
 _clouds_yaml
 metal3-dev/deployment-*.yaml
@@ -19,3 +20,4 @@ assets/templates/99_master-chronyd-redhat.yaml
 assets/templates/99_worker-chronyd-redhat.yaml
 
 pull_secret.json
+.claude/

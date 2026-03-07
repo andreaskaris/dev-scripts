@@ -1,9 +1,11 @@
 l3vnis:
   - vrf: red
     vni: 100
+    vxlanport: 4789
 l2vnis:
   - vni: 210
     vrf: red
+    vxlanport: 4789
     l2gatewayips:
       - "192.168.110.1/24"
     hostmaster:

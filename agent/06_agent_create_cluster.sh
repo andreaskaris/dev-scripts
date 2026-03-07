@@ -78,6 +78,13 @@ function create_config_image() {
 
     "${openshift_install}" --log-level=debug --dir="${config_image_dir}" agent create config-image
 
+    # Run post-config-image hooks if present
+    POST_CONFIG_IMAGE_HOOK="${POST_CONFIG_IMAGE_HOOK:-}"
+    if [ -n "${POST_CONFIG_IMAGE_HOOK}" ] && [ -x "${POST_CONFIG_IMAGE_HOOK}" ]; then
+        echo "Running post-config-image hook: ${POST_CONFIG_IMAGE_HOOK}"
+        "${POST_CONFIG_IMAGE_HOOK}"
+    fi
+
     # Copy the auth files to OCP_DIR so wait-for command can access it
     cp -r ${config_image_dir}/auth ${asset_dir}
 }
@@ -534,9 +541,9 @@ function agent_iscsi_update_nodes() {
 function create_appliance() {
     local asset_dir="$(realpath "${1}")"
 
-    # Build appliance with `debug-base-ignition` flag for using the custom openshift-install
-    # binary from assets directory.
-    sudo podman run -it --rm --pull newer --privileged --net=host -v ${asset_dir}:/assets:Z ${APPLIANCE_IMAGE} build --debug-base-ignition
+    sudo podman run -it --rm --pull newer --privileged --net=host \
+        -v "${asset_dir}:/assets:Z" \
+        "${APPLIANCE_IMAGE}" build --debug-base-ignition
 }
 
 # scp a file with list of operators to the rendezvous node so that operators can be registered with assisted-service
