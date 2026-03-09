@@ -371,6 +371,13 @@ fi
 sudo sed -i "/${LOCAL_REGISTRY_DNS_NAME}/d" /etc/hosts
 echo "${PROVISIONING_HOST_EXTERNAL_IP} ${LOCAL_REGISTRY_DNS_NAME}" | sudo tee -a /etc/hosts
 
+# If OPENPE_BRIDGE_IP is set, add a /etc/hosts entry so that
+# api.CLUSTER_DOMAIN resolves to the bridge IP regardless of DNS/VRF context.
+if [ -n "${OPENPE_BRIDGE_IP:-}" ]; then
+  sudo sed -i "/api.${CLUSTER_DOMAIN}/d" /etc/hosts
+  echo "${OPENPE_BRIDGE_IP} api.${CLUSTER_DOMAIN}" | sudo tee -a /etc/hosts
+fi
+
 if use_registry "podman"; then
     # Remove any previous file, or podman login panics when reading the
     # blank authfile with a "assignment to entry in nil map" error

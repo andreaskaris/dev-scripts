@@ -32,6 +32,9 @@ ansible-playbook \
     -i ${VM_SETUP_PATH}/inventory.ini \
     -b -vvv ${VM_SETUP_PATH}/teardown-playbook.yml
 
+# Remove api hosts entry added for OpenPERouter bridge access
+sudo sed -i "/api.${CLUSTER_DOMAIN}/d" /etc/hosts
+
 sudo rm -rf /etc/NetworkManager/dnsmasq.d/openshift-${CLUSTER_NAME}.conf /etc/yum.repos.d/delorean*
 sudo rm -rf /etc/NetworkManager/conf.d/dnsmasq.conf
 sudo rm -rf /etc/NetworkManager/dnsmasq.d/upstream.conf
