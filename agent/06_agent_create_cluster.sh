@@ -354,7 +354,7 @@ function enable_assisted_service_ui() {
 function wait_for_cluster_ready() {
   local openshift_install="$(realpath "${OCP_DIR}/openshift-install")"
   local dir="${OCP_DIR}"
-  if [[ "${AGENT_USE_APPLIANCE_MODEL}" == true || "${AGENT_E2E_TEST_BOOT_MODE}" == "DISKIMAGE" ]]; then
+  if [[ "${AGENT_USE_APPLIANCE_MODEL}" == true || "${AGENT_E2E_TEST_BOOT_MODE}" == "DISKIMAGE" || "${AGENT_E2E_TEST_BOOT_MODE}" == "APPLIANCE_ISO" ]]; then
      dir="${config_image_dir}"
   fi
   if ! "${openshift_install}" --dir="${dir}" --log-level=debug agent wait-for bootstrap-complete; then
@@ -546,6 +546,66 @@ function create_appliance() {
         "${APPLIANCE_IMAGE}" build --debug-base-ignition
 }
 
+# Workaround: openshift-install generates cluster-image-set.yaml with a namespace field
+# that the appliance's load-config-iso.sh doesn't expect, causing a strict diff to fail.
+# This patches the config.gz inside the config-image ISO to remove the namespace field.
+function fix_config_image_for_appliance() {
+    local iso_file="${config_image_dir}/agentconfig.noarch.iso"
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    local mntdir="${tmpdir}/mnt"
+    mkdir -p "${mntdir}" "${tmpdir}/extract" "${tmpdir}/iso"
+
+    # Extract config.gz from the ISO
+    sudo mount -o loop,ro "${iso_file}" "${mntdir}"
+    cp -a "${mntdir}"/* "${tmpdir}/iso/"
+    local label
+    label=$(blkid -s LABEL -o value "${iso_file}" 2>/dev/null || echo "agentconfig")
+    sudo umount "${mntdir}"
+
+    # Patch cluster-image-set.yaml inside config.gz
+    pushd "${tmpdir}/extract"
+    gunzip -c "${tmpdir}/iso/config.gz" | cpio -idm 2>/dev/null
+    sed -i '/^  namespace:/d' etc/assisted/manifests/cluster-image-set.yaml
+    find . | cpio -o -H newc 2>/dev/null | gzip > "${tmpdir}/iso/config.gz"
+    popd
+
+    # Rebuild the ISO
+    genisoimage -o "${iso_file}" -V "${label}" -r -J "${tmpdir}/iso/"
+
+    rm -rf "${tmpdir}"
+}
+
+function create_appliance_liveiso() {
+    local asset_dir="$(realpath "${1}")"
+
+    sudo podman run -it --rm --pull newer --privileged --net=host \
+        -v "${asset_dir}:/assets:Z" \
+        "${APPLIANCE_IMAGE}" build live-iso --log-level=debug
+}
+
+function attach_appliance_liveiso() {
+    set_file_acl
+
+    local appliance_iso="${OCP_DIR}/appliance.iso"
+
+    for (( n=0; n<${2}; n++ ))
+    do
+        name=${CLUSTER_NAME}_${1}_${n}
+
+        # Remove all existing disks and re-add them cleanly
+        sudo virt-xml ${name} --remove-device --disk all
+        sudo virt-xml ${name} --add-device --disk size=120,device=disk,target.dev=sda
+        sudo virt-xml ${name} --add-device --disk "${appliance_iso}",device=cdrom,target.dev=sdc
+        # Present config-image as a USB disk so the appliance config-image detection finds it
+        sudo virt-xml ${name} --add-device --disk "${config_image_dir}/agentconfig.noarch.iso",device=disk,bus=usb
+
+        # Boot machine from the appliance live ISO
+        sudo virt-xml ${name} --edit target=sda --disk="boot_order=1"
+        sudo virt-xml ${name} --edit target=sdc --disk="boot_order=2" --start
+    done
+}
+
 # scp a file with list of operators to the rendezvous node so that operators can be registered with assisted-service
 function put_operator_file() {
   tmpoperatorfile=$(mktemp --tmpdir "operators--XXXXXXXXXX")
@@ -644,6 +704,30 @@ case "${AGENT_E2E_TEST_BOOT_MODE}" in
     sudo rm -rf "${OCP_DIR}/cache"
     sudo rm -rf "${OCP_DIR}/temp"
     ;;
+  "APPLIANCE_ISO" )
+    # Build live ISO using openshift-appliance (includes additionalImages)
+    create_appliance_liveiso ${asset_dir}
+
+    # Create the config ISO
+    # Remove namespace from manifests before creating config-image, as the
+    # appliance's load-config-iso.sh does a strict diff on cluster-image-set.yaml
+    # and the appliance ignition doesn't include the namespace field.
+    mkdir -p ${config_image_dir}
+    cp ${asset_dir}/*.yaml ${config_image_dir}
+    sed -i '/^  namespace:/d' ${config_image_dir}/agent-config.yaml
+    sed -i '/^  namespace:/d' ${config_image_dir}/install-config.yaml
+    create_config_image
+
+    # Attach the live ISO and config-image to nodes
+    attach_appliance_liveiso master $NUM_MASTERS
+    attach_appliance_liveiso worker $NUM_WORKERS
+    attach_appliance_liveiso arbiter $NUM_ARBITERS
+
+    # Delete cache/temp directories to free space
+    sudo rm -rf "${OCP_DIR}/cache"
+    sudo rm -rf "${OCP_DIR}/temp"
+    ;;
+
   "ISO_NO_REGISTRY" )
     # Build an (OVE) image which does not need registry setup 
     # Run a script from agent-installer-utils which internally uses openshift-appliance

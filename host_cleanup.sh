@@ -88,6 +88,9 @@ fi
 # Drop all ebtables rules
 sudo ebtables --flush
 
+# Stop firewalld to clean up rules added during configure
+sudo systemctl stop firewalld || true
+
 # Kill any lingering proxy
 sudo pkill -f oc.*proxy
 

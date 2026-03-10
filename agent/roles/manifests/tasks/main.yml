@@ -36,4 +36,4 @@
 
 - name: Create appliance-config manifests
   import_tasks: appliance.yml
-  when: boot_mode == 'DISKIMAGE'
+  when: boot_mode == 'DISKIMAGE' or boot_mode == 'APPLIANCE_ISO'
