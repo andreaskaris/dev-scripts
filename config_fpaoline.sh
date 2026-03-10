@@ -52,6 +52,10 @@ export PULL_SECRET_FILE="${PWD}/openshift_pull.json"
 # Console login: core / debug123
 export IGNITION_EXTRA="${PWD}/ignition-password.ign"
 
+# --- BRIDGE / API ACCESS ---
+# Resolve api.CLUSTER_DOMAIN to the bridge IP so it's reachable from VRF context
+export OPENPE_BRIDGE_IP="192.168.110.2"
+
 # --- OPENPEROUTER ---
 # Pre-load OpenPERouter container images into the appliance disk
 #export APPLIANCE_ADDITIONAL_IMAGES="quay.io/openperouter/router:main"
