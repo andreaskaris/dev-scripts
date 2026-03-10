@@ -62,5 +62,6 @@ export OPENPE_BRIDGE_IP="192.168.110.2"
 export APPLIANCE_ADDITIONAL_IMAGES="quay.io/fpaoline/router:dev3"
 # Extra manifests for OpenPERouter MachineConfig
 export EXTRA_MANIFESTS_PATH="${SCRIPTDIR}/ocp/${CLUSTER_NAME}/openshift"
-# Patch config-image to enable virtual interfaces in assisted-service inventory
-export POST_CONFIG_IMAGE_HOOK="${SCRIPTDIR}/openperouter/patch_configimage.sh"
+# ENABLE_VIRTUAL_INTERFACES is now injected via a systemd unit embedded
+# in the appliance ISO (enable-virtual-interfaces.service), no longer
+# needing to patch the config-image ISO.

@@ -3,6 +3,7 @@ kind: ApplianceConfig
 ocpRelease:
   version: "{{ version }}"
   url: {{ image }}
+createPinnedImageSets: true
 diskSizeGB: 200
 pullSecret: {{ pull_secret_contents }}
 sshKey: {{ ssh_pub_key }}

@@ -1,0 +1,13 @@
+[Unit]
+Description=Enable Virtual Interfaces in Assisted Service
+Before=assisted-service-pod.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/enable-virtual-interfaces.sh
+Restart=on-failure
+RestartSec=2
+RemainAfterExit=yes
+
+[Install]
+WantedBy=assisted-service.service

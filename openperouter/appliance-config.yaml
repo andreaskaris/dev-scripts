@@ -4,6 +4,7 @@ ocpRelease:
   version: 4.18
   channel: stable
   cpuArchitecture: x86_64
+createPinnedImageSets: true
 diskSizeGB: 200
 imageRegistry:
   uri: docker.io/library/registry:2
