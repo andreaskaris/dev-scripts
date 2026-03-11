@@ -594,7 +594,7 @@ function embed_files_in_appliance_iso() {
     local merged_ign="${tmpdir}/merged.ign"
 
     # Extract existing ignition from the ISO
-    coreos-installer iso ignition show "${iso_file}" > "${orig_ign}" 2>/dev/null || echo '{"ignition":{"version":"3.4.0"}}' > "${orig_ign}"
+    sudo coreos-installer iso ignition show "${iso_file}" > "${orig_ign}" 2>/dev/null || echo '{"ignition":{"version":"3.4.0"}}' > "${orig_ign}"
 
     # Build JSON arrays for files and systemd units
     local files_json="[]"
@@ -643,8 +643,8 @@ function embed_files_in_appliance_iso() {
     ' "${orig_ign}" > "${merged_ign}"
 
     # Re-embed the modified ignition
-    coreos-installer iso ignition remove "${iso_file}" 2>/dev/null || true
-    coreos-installer iso ignition embed -i "${merged_ign}" "${iso_file}"
+    sudo coreos-installer iso ignition remove "${iso_file}" 2>/dev/null || true
+    sudo coreos-installer iso ignition embed -i "${merged_ign}" "${iso_file}"
 
     rm -rf "${tmpdir}"
     echo "Embedded $(echo "${files_json}" | jq length) files and $(echo "${units_json}" | jq length) units into appliance ISO ignition"
@@ -782,25 +782,66 @@ case "${AGENT_E2E_TEST_BOOT_MODE}" in
     # Build live ISO using openshift-appliance (includes additionalImages)
     create_appliance_liveiso ${asset_dir}
 
-    # Embed extra files (quadlets, configs) into the appliance ISO ignition
-    # so they are available at first boot, before MachineConfig is applied.
-    local appliance_iso="${OCP_DIR}/appliance.iso"
-    local openperouter_dir="${SCRIPTDIR}/openperouter"
+    # Generate a registries.conf drop-in from the appliance's IDMS/ITMS files
+    # so that mirror redirects work on first boot (before MCO applies them).
+    appliance_iso="${OCP_DIR}/appliance.iso"
+    openperouter_dir="${SCRIPTDIR}/openperouter"
+    registries_conf="${OCP_DIR}/appliance-registries.conf"
+    cluster_resources="${OCP_DIR}/cache/"*"/cluster-resources"
+    {
+        for yaml_file in ${cluster_resources}/idms-oc-mirror.yaml ${cluster_resources}/itms-oc-mirror.yaml; do
+            if [[ ! -f "${yaml_file}" ]]; then
+                continue
+            fi
+            # Determine mirror-by-digest-only from file type (IDMS=true, ITMS=false)
+            if [[ "${yaml_file}" == *idms* ]]; then
+                digest_only="true"
+            else
+                digest_only="false"
+            fi
+            # Extract source/mirror pairs and generate TOML registry blocks
+            yq -r '.spec.imageDigestMirrors // .spec.imageTagMirrors // [] | .[] | .source as $src | .mirrors[] | [$src, .] | @tsv' "${yaml_file}" | \
+            while IFS=$'\t' read -r source mirror; do
+                cat <<TOML
+
+[[registry]]
+  prefix = ""
+  location = "${source}"
+  mirror-by-digest-only = ${digest_only}
+
+  [[registry.mirror]]
+    location = "${mirror}"
+    insecure = true
+TOML
+            done
+        done
+    } > "${registries_conf}"
+
+    # Embed extra files (quadlets, configs, registries.conf) into the appliance
+    # ISO ignition so they are available at first boot, before MachineConfig is applied.
+    embed_args=()
+    if [[ -s "${registries_conf}" ]]; then
+        embed_args+=("${registries_conf}:/etc/containers/registries.conf.d/appliance-mirrors.conf:420")
+    fi
     if [[ -d "${openperouter_dir}/quadlets" ]]; then
-        embed_files_in_appliance_iso "${appliance_iso}" \
-            "${openperouter_dir}/quadlets/controllerpod.pod:/etc/containers/systemd/controllerpod.pod:420" \
-            "${openperouter_dir}/quadlets/controller.container:/etc/containers/systemd/controller.container:420" \
-            "${openperouter_dir}/quadlets/routerpod.pod:/etc/containers/systemd/routerpod.pod:420" \
-            "${openperouter_dir}/quadlets/frr.container:/etc/containers/systemd/frr.container:420" \
-            "${openperouter_dir}/quadlets/reloader.container:/etc/containers/systemd/reloader.container:420" \
-            "${openperouter_dir}/quadlets/frr-sockets.volume:/etc/containers/systemd/frr-sockets.volume:420" \
-            "${openperouter_dir}/quadlets/openperouter-node-index.service:/etc/containers/systemd/openperouter-node-index.service:420" \
-            "${openperouter_dir}/quadlets/openperouter-node-index.sh:/usr/local/bin/openperouter-node-index.sh:493" \
-            "${openperouter_dir}/quadlets/enable-virtual-interfaces.sh:/usr/local/bin/enable-virtual-interfaces.sh:493" \
-            "${openperouter_dir}/openpeconfig/node-config.yaml:/var/lib/openperouter/node-config.yaml:420" \
-            "${openperouter_dir}/openpeconfig/openpe_config.yaml:/var/lib/openperouter/configs/openpe_config.yaml:420" \
-            "${openperouter_dir}/openpeconfig/default_bridge:/etc/ovnk/default_bridge:420" \
+        embed_args+=(
+            "${openperouter_dir}/quadlets/controllerpod.pod:/etc/containers/systemd/controllerpod.pod:420"
+            "${openperouter_dir}/quadlets/controller.container:/etc/containers/systemd/controller.container:420"
+            "${openperouter_dir}/quadlets/routerpod.pod:/etc/containers/systemd/routerpod.pod:420"
+            "${openperouter_dir}/quadlets/frr.container:/etc/containers/systemd/frr.container:420"
+            "${openperouter_dir}/quadlets/reloader.container:/etc/containers/systemd/reloader.container:420"
+            "${openperouter_dir}/quadlets/frr-sockets.volume:/etc/containers/systemd/frr-sockets.volume:420"
+            "${openperouter_dir}/quadlets/openperouter-node-index.service:/etc/containers/systemd/openperouter-node-index.service:420"
+            "${openperouter_dir}/quadlets/openperouter-node-index.sh:/usr/local/bin/openperouter-node-index.sh:493"
+            "${openperouter_dir}/quadlets/enable-virtual-interfaces.sh:/usr/local/bin/enable-virtual-interfaces.sh:493"
+            "${openperouter_dir}/openpeconfig/node-config.yaml:/var/lib/openperouter/node-config.yaml:420"
+            "${openperouter_dir}/openpeconfig/openpe_config.yaml:/var/lib/openperouter/configs/openpe_config.yaml:420"
+            "${openperouter_dir}/openpeconfig/default_bridge:/etc/ovnk/default_bridge:420"
             "unit-file:enable-virtual-interfaces.service:${openperouter_dir}/quadlets/enable-virtual-interfaces.service"
+        )
+    fi
+    if [[ ${#embed_args[@]} -gt 0 ]]; then
+        embed_files_in_appliance_iso "${appliance_iso}" "${embed_args[@]}"
     fi
 
     # Create the config ISO
@@ -818,9 +859,6 @@ case "${AGENT_E2E_TEST_BOOT_MODE}" in
     attach_appliance_liveiso worker $NUM_WORKERS
     attach_appliance_liveiso arbiter $NUM_ARBITERS
 
-    # Delete cache/temp directories to free space
-    sudo rm -rf "${OCP_DIR}/cache"
-    sudo rm -rf "${OCP_DIR}/temp"
     ;;
 
   "ISO_NO_REGISTRY" )

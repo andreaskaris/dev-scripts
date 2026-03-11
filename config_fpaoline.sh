@@ -60,8 +60,6 @@ export OPENPE_BRIDGE_IP="192.168.110.2"
 # Pre-load OpenPERouter container images into the appliance disk
 #export APPLIANCE_ADDITIONAL_IMAGES="quay.io/openperouter/router:main"
 export APPLIANCE_ADDITIONAL_IMAGES="quay.io/fpaoline/router:dev3"
-# Extra manifests for OpenPERouter MachineConfig
-export EXTRA_MANIFESTS_PATH="${SCRIPTDIR}/ocp/${CLUSTER_NAME}/openshift"
-# ENABLE_VIRTUAL_INTERFACES is now injected via a systemd unit embedded
-# in the appliance ISO (enable-virtual-interfaces.service), no longer
-# needing to patch the config-image ISO.
+# OpenPERouter quadlets and configs are embedded directly in the appliance
+# ISO ignition, so no extra MachineConfig manifests are needed.
+# ENABLE_VIRTUAL_INTERFACES is injected via a systemd unit in the ISO.

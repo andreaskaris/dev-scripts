@@ -360,6 +360,12 @@ if [ "$EXT_IF" ]; then
     sudo $IPTABLES -I DOCKER-USER --in-interface ${BAREMETAL_NETWORK_NAME} -j ACCEPT
     sudo $IPTABLES -I DOCKER-USER --out-interface ${BAREMETAL_NETWORK_NAME} -j ACCEPT
   fi
+  # Allow loopback traffic in the DOCKER chain so that containers using
+  # podman-in-podman (e.g. openshift-appliance build live-iso) can reach
+  # their internal registry on 127.0.0.1
+  if sudo $IPTABLES -L DOCKER -n &>/dev/null; then
+    sudo $IPTABLES -I DOCKER -i lo -j ACCEPT
+  fi
 fi
 
 # Switch NetworkManager to internal DNS
