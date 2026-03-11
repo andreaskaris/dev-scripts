@@ -576,80 +576,6 @@ function fix_config_image_for_appliance() {
     rm -rf "${tmpdir}"
 }
 
-# Embed extra files and systemd units into the appliance ISO's ignition so they
-# are available at first boot. Uses coreos-installer to extract/embed the
-# ignition and jq to merge entries.
-# Args: $1 = appliance ISO path
-#   Remaining args are either:
-#     "source:dest:mode"          - file to embed
-#     "unit:name:contents"        - systemd unit (contents is the unit file body)
-#     "unit-file:name:source"     - systemd unit from a file
-function embed_files_in_appliance_iso() {
-    local iso_file="$1"
-    shift
-
-    local tmpdir
-    tmpdir=$(mktemp -d)
-    local orig_ign="${tmpdir}/original.ign"
-    local merged_ign="${tmpdir}/merged.ign"
-
-    # Extract existing ignition from the ISO
-    sudo coreos-installer iso ignition show "${iso_file}" > "${orig_ign}" 2>/dev/null || echo '{"ignition":{"version":"3.4.0"}}' > "${orig_ign}"
-
-    # Build JSON arrays for files and systemd units
-    local files_json="[]"
-    local units_json="[]"
-
-    for entry in "$@"; do
-        local prefix="${entry%%:*}"
-
-        if [[ "${prefix}" == "unit-file" ]]; then
-            # unit-file:service-name:source-file
-            local rest="${entry#unit-file:}"
-            local unit_name="${rest%%:*}"
-            local unit_src="${rest#*:}"
-            if [[ ! -f "${unit_src}" ]]; then
-                echo "WARNING: unit file ${unit_src} not found, skipping"
-                continue
-            fi
-            local unit_contents
-            unit_contents=$(cat "${unit_src}")
-            units_json=$(echo "${units_json}" | jq --arg name "${unit_name}" \
-                --arg contents "${unit_contents}" \
-                '. + [{"name": $name, "enabled": true, "contents": $contents}]')
-        else
-            # source:dest:mode
-            IFS=':' read -r src dest mode <<< "${entry}"
-            if [[ ! -f "${src}" ]]; then
-                echo "WARNING: ${src} not found, skipping"
-                continue
-            fi
-            local encoded
-            encoded=$(base64 -w0 < "${src}")
-            files_json=$(echo "${files_json}" | jq --arg src "data:;base64,${encoded}" \
-                --arg path "${dest}" --argjson mode "${mode}" \
-                '. + [{"path": $path, "mode": $mode, "overwrite": true, "contents": {"source": $src}}]')
-        fi
-    done
-
-    # Merge file and unit entries into the existing ignition
-    jq --argjson new_files "${files_json}" --argjson new_units "${units_json}" '
-        .storage = (.storage // {}) |
-        .storage.files = ((.storage.files // []) + $new_files) |
-        if ($new_units | length) > 0 then
-            .systemd = (.systemd // {}) |
-            .systemd.units = ((.systemd.units // []) + $new_units)
-        else . end
-    ' "${orig_ign}" > "${merged_ign}"
-
-    # Re-embed the modified ignition
-    sudo coreos-installer iso ignition remove "${iso_file}" 2>/dev/null || true
-    sudo coreos-installer iso ignition embed -i "${merged_ign}" "${iso_file}"
-
-    rm -rf "${tmpdir}"
-    echo "Embedded $(echo "${files_json}" | jq length) files and $(echo "${units_json}" | jq length) units into appliance ISO ignition"
-}
-
 function create_appliance_liveiso() {
     local asset_dir="$(realpath "${1}")"
 
@@ -782,66 +708,11 @@ case "${AGENT_E2E_TEST_BOOT_MODE}" in
     # Build live ISO using openshift-appliance (includes additionalImages)
     create_appliance_liveiso ${asset_dir}
 
-    # Generate a registries.conf drop-in from the appliance's IDMS/ITMS files
-    # so that mirror redirects work on first boot (before MCO applies them).
+    # Embed OpenPERouter quadlets, configs, and registry mirrors into the
+    # appliance ISO ignition (first-boot customization).
     appliance_iso="${OCP_DIR}/appliance.iso"
-    openperouter_dir="${SCRIPTDIR}/openperouter"
-    registries_conf="${OCP_DIR}/appliance-registries.conf"
-    cluster_resources="${OCP_DIR}/cache/"*"/cluster-resources"
-    {
-        for yaml_file in ${cluster_resources}/idms-oc-mirror.yaml ${cluster_resources}/itms-oc-mirror.yaml; do
-            if [[ ! -f "${yaml_file}" ]]; then
-                continue
-            fi
-            # Determine mirror-by-digest-only from file type (IDMS=true, ITMS=false)
-            if [[ "${yaml_file}" == *idms* ]]; then
-                digest_only="true"
-            else
-                digest_only="false"
-            fi
-            # Extract source/mirror pairs and generate TOML registry blocks
-            yq -r '.spec.imageDigestMirrors // .spec.imageTagMirrors // [] | .[] | .source as $src | .mirrors[] | [$src, .] | @tsv' "${yaml_file}" | \
-            while IFS=$'\t' read -r source mirror; do
-                cat <<TOML
-
-[[registry]]
-  prefix = ""
-  location = "${source}"
-  mirror-by-digest-only = ${digest_only}
-
-  [[registry.mirror]]
-    location = "${mirror}"
-    insecure = true
-TOML
-            done
-        done
-    } > "${registries_conf}"
-
-    # Embed extra files (quadlets, configs, registries.conf) into the appliance
-    # ISO ignition so they are available at first boot, before MachineConfig is applied.
-    embed_args=()
-    if [[ -s "${registries_conf}" ]]; then
-        embed_args+=("${registries_conf}:/etc/containers/registries.conf.d/appliance-mirrors.conf:420")
-    fi
-    if [[ -d "${openperouter_dir}/quadlets" ]]; then
-        embed_args+=(
-            "${openperouter_dir}/quadlets/controllerpod.pod:/etc/containers/systemd/controllerpod.pod:420"
-            "${openperouter_dir}/quadlets/controller.container:/etc/containers/systemd/controller.container:420"
-            "${openperouter_dir}/quadlets/routerpod.pod:/etc/containers/systemd/routerpod.pod:420"
-            "${openperouter_dir}/quadlets/frr.container:/etc/containers/systemd/frr.container:420"
-            "${openperouter_dir}/quadlets/reloader.container:/etc/containers/systemd/reloader.container:420"
-            "${openperouter_dir}/quadlets/frr-sockets.volume:/etc/containers/systemd/frr-sockets.volume:420"
-            "${openperouter_dir}/quadlets/openperouter-node-index.service:/etc/containers/systemd/openperouter-node-index.service:420"
-            "${openperouter_dir}/quadlets/openperouter-node-index.sh:/usr/local/bin/openperouter-node-index.sh:493"
-            "${openperouter_dir}/quadlets/enable-virtual-interfaces.sh:/usr/local/bin/enable-virtual-interfaces.sh:493"
-            "${openperouter_dir}/openpeconfig/node-config.yaml:/var/lib/openperouter/node-config.yaml:420"
-            "${openperouter_dir}/openpeconfig/openpe_config.yaml:/var/lib/openperouter/configs/openpe_config.yaml:420"
-            "${openperouter_dir}/openpeconfig/default_bridge:/etc/ovnk/default_bridge:420"
-            "unit-file:enable-virtual-interfaces.service:${openperouter_dir}/quadlets/enable-virtual-interfaces.service"
-        )
-    fi
-    if [[ ${#embed_args[@]} -gt 0 ]]; then
-        embed_files_in_appliance_iso "${appliance_iso}" "${embed_args[@]}"
+    if [[ -x "${SCRIPTDIR}/openperouter/prepare_appliance.sh" ]]; then
+        "${SCRIPTDIR}/openperouter/prepare_appliance.sh" "${appliance_iso}" "${OCP_DIR}"
     fi
 
     # Create the config ISO
