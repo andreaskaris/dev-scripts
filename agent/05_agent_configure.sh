@@ -110,6 +110,12 @@ function configure_node() {
       # For a bond, a random mac is added for the 2nd interface
       AGENT_NODES_MACS+=($(sudo virsh domiflist "${cluster_name}" | grep "${BAREMETAL_NETWORK_NAME}" | grep -v "${node_mac}" | awk '{print $5}'))
     fi
+    # Collect MACs for any extra network interfaces
+    if [[ -n "${EXTRA_NETWORK_NAMES:-}" ]]; then
+      for extra_net in ${EXTRA_NETWORK_NAMES}; do
+        AGENT_NODES_EXTRA_MACS+=($(sudo virsh dumpxml "$cluster_name" | xmllint --xpath "string(//interface[descendant::source[@bridge = '${extra_net}']]/mac/@address)" -))
+      done
+    fi
   else
       if [[ "$IP_STACK" = "v4" ]]; then
       AGENT_EXTRA_WORKERS_IPS+=("$node_ip")
@@ -127,6 +133,7 @@ function get_static_ips_and_macs() {
     AGENT_NODES_IPS=()
     AGENT_NODES_IPSV6=()
     AGENT_NODES_MACS=()
+    AGENT_NODES_EXTRA_MACS=()
     AGENT_NODES_HOSTNAMES=()
     AGENT_EXTRA_WORKERS_IPS=()
     AGENT_EXTRA_WORKERS_IPSV6=()
@@ -285,6 +292,17 @@ function generate_cluster_manifests() {
   export AGENT_NODES_IPSV6_STR=${nodes_ipsv6::-1}
   nodes_macs=$(printf '%s,' "${AGENT_NODES_MACS[@]}")
   export AGENT_NODES_MACS_STR=${nodes_macs::-1}
+  if [[ ${#AGENT_NODES_EXTRA_MACS[@]} -gt 0 ]]; then
+    nodes_extra_macs=$(printf '%s,' "${AGENT_NODES_EXTRA_MACS[@]}")
+    export AGENT_NODES_EXTRA_MACS_STR=${nodes_extra_macs::-1}
+  else
+    export AGENT_NODES_EXTRA_MACS_STR=""
+  fi
+  local extra_net_count=0
+  for _ in ${EXTRA_NETWORK_NAMES:-}; do
+    extra_net_count=$((extra_net_count + 1))
+  done
+  export AGENT_NUM_EXTRA_NETWORKS=${extra_net_count}
   nodes_hostnames=$(printf '%s,' "${AGENT_NODES_HOSTNAMES[@]}")
   export AGENT_NODES_HOSTNAMES_STR=${nodes_hostnames::-1}
 

@@ -35,6 +35,15 @@ hosts:
       interfaces:
         - name: eth0
           macAddress: {{ macs[loop.index0] }}
+{% if agent_nodes_extra_macs %}
+{% set extra_macs = agent_nodes_extra_macs.split(',') %}
+{% set num_extra = agent_num_extra_networks | int %}
+{% set node_idx = loop.index0 %}
+{% for k in range(num_extra) %}
+        - name: eth{{ k + 1 }}
+          macAddress: {{ extra_macs[node_idx * num_extra + k] }}
+{% endfor %}
+{% endif %}
 {% if (networking_mode != "DHCP" or agent_nmstate_dhcp == 'true') %}
       networkConfig:
         interfaces:
