@@ -36,6 +36,9 @@ INSTALL_CONFIG="${WORKING_DIR}/ocp/${CLUSTER_NAME}/install-config.yaml"
 
 NIC_NAME="enp2s0"
 
+# NTP server reachable during agent discovery phase (host's baremetal IP)
+NTP_SERVER="${NTP_SERVER:-192.168.111.1}"
+
 if [ ! -f "${AGENT_CONFIG}" ]; then
   echo "ERROR: ${AGENT_CONFIG} not found. Run agent/05_agent_configure.sh first."
   exit 1
@@ -61,6 +64,7 @@ echo "  NIC IP:        ${NIC_IP}/${NIC_PREFIX}"
 echo "  Bridge IP:     ${BRIDGE_IP}/${BRIDGE_PREFIX}"
 echo "  Gateway:       ${BRIDGE_GW} (via ${BRIDGE_NAME})"
 echo "  RendezvousIP:  ${BRIDGE_IP}"
+echo "  NTP Server:    ${NTP_SERVER}"
 
 # Generate the patched agent-config.yaml
 python3 -c "
@@ -70,6 +74,7 @@ with open('${AGENT_CONFIG}') as f:
     cfg = yaml.safe_load(f)
 
 cfg['rendezvousIP'] = '${BRIDGE_IP}'
+cfg['additionalNTPSources'] = ['${NTP_SERVER}']
 
 # Fix the interface name from the template's hardcoded 'eth0' to the actual NIC name
 cfg['hosts'][0]['interfaces'][0]['name'] = '${NIC_NAME}'
