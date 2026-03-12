@@ -36,6 +36,9 @@ export NETWORK_TYPE="OVNKubernetes"
 export EXTRA_NETWORK_NAMES="external"
 export EXTERNAL_NETWORK_SUBNET_V4='192.168.150.0/24'
 
+# Allow the bridge subnet to reach the host's chronyd for NTP sync
+export CHRONY_EXTRA_ALLOW_SUBNETS="192.168.110.0/24"
+
 # --- VM RESOURCES ---
 # Explicit values matching the SNO_IPV4 preset to document intent
 export MASTER_MEMORY=32768

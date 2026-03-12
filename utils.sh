@@ -59,6 +59,10 @@ function configure_chronyd() {
    ensure_line /etc/chrony.conf "allow ${EXTERNAL_SUBNET_V6}"
    ensure_line /etc/chrony.conf "allow ${PROVISIONING_NETWORK}"
 
+   for subnet in ${CHRONY_EXTRA_ALLOW_SUBNETS:-}; do
+     ensure_line /etc/chrony.conf "allow ${subnet}"
+   done
+
   sudo systemctl restart chronyd
 
   if [ "$MANAGE_BR_BRIDGE" == "y" ];
@@ -66,6 +70,14 @@ function configure_chronyd() {
     sudo firewall-cmd --permanent --zone=libvirt --add-service=ntp
     sudo firewall-cmd --zone=libvirt --add-service=ntp
   else
+    sudo firewall-cmd --permanent --add-service=ntp
+    sudo firewall-cmd --add-service=ntp
+  fi
+
+  # When extra subnets are configured, NTP traffic may arrive on interfaces
+  # outside the libvirt zone (e.g. via a PERouter bridge). Open NTP on the
+  # default zone as well so those requests are not blocked.
+  if [ -n "${CHRONY_EXTRA_ALLOW_SUBNETS:-}" ]; then
     sudo firewall-cmd --permanent --add-service=ntp
     sudo firewall-cmd --add-service=ntp
   fi
