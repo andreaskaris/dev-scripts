@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# SNO Agent-Based Deployment with Linux Bridge
-# Feature: 001-sno-agent-bridge-config
+# Compact (3-node) Agent-Based Deployment with Linux Bridge
+# Feature: 001-sno-agent-bridge-config-firstboot-multinode
 #
 # Usage:
 #   cp config_sno_bridge.sh config.sh
@@ -21,7 +21,7 @@ export CLUSTER_NAME="sno-lab"
 export BASE_DOMAIN="example.com"
 
 # --- AGENT-BASED INSTALLER ---
-export AGENT_E2E_TEST_SCENARIO="SNO_IPV4"
+export AGENT_E2E_TEST_SCENARIO="COMPACT_IPV4"
 export AGENT_E2E_TEST_BOOT_MODE="APPLIANCE_ISO"
 export OPENSHIFT_VERSION=4.20.16
 export OPENSHIFT_RELEASE_STREAM=4.20
@@ -40,7 +40,7 @@ export EXTERNAL_NETWORK_SUBNET_V4='192.168.150.0/24'
 export CHRONY_EXTRA_ALLOW_SUBNETS="192.168.110.0/24"
 
 # --- VM RESOURCES ---
-# Explicit values matching the SNO_IPV4 preset to document intent
+# Explicit values matching the COMPACT_IPV4 preset to document intent
 export MASTER_MEMORY=32768
 export MASTER_VCPU=8
 export MASTER_DISK=100
