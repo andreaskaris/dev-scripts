@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Clean up the external FRR container, VXLAN, bridge, VRF, and VTEP address.
+# Clean up the external FRR container, VXLAN, bridge, and VTEP address.
 #
 # Usage:
 #   ./cleanup.sh
@@ -10,9 +10,8 @@ CONTAINER_NAME="externalfrr"
 VNI=100
 VXLAN_IF="vni${VNI}"
 BRIDGE_IF="br${VNI}"
-VRF_NAME="red"
 VTEP_LO="lo-vtep"
-VRF_LO="lo-vrf-${VRF_NAME}"
+LO_NAME="lo-extra"
 
 echo "Cleaning up external FRR..."
 
@@ -24,13 +23,13 @@ else
     echo "  Container '${CONTAINER_NAME}' not found, skipping"
 fi
 
-# Remove VRF loopback
-if ip link show "${VRF_LO}" &>/dev/null; then
-    echo "  Removing VRF loopback ${VRF_LO}..."
-    sudo ip link set "${VRF_LO}" down
-    sudo ip link del "${VRF_LO}"
+# Remove extra loopback
+if ip link show "${LO_NAME}" &>/dev/null; then
+    echo "  Removing loopback ${LO_NAME}..."
+    sudo ip link set "${LO_NAME}" down
+    sudo ip link del "${LO_NAME}"
 else
-    echo "  VRF loopback ${VRF_LO} not found, skipping"
+    echo "  Loopback ${LO_NAME} not found, skipping"
 fi
 
 # Remove VXLAN from bridge
@@ -54,15 +53,6 @@ if ip link show "${VXLAN_IF}" &>/dev/null; then
     sudo ip link del "${VXLAN_IF}"
 else
     echo "  VXLAN ${VXLAN_IF} not found, skipping"
-fi
-
-# Remove VRF
-if ip link show "${VRF_NAME}" &>/dev/null; then
-    echo "  Removing VRF ${VRF_NAME}..."
-    sudo ip link set "${VRF_NAME}" down
-    sudo ip link del "${VRF_NAME}"
-else
-    echo "  VRF ${VRF_NAME} not found, skipping"
 fi
 
 # Remove VTEP loopback interface
