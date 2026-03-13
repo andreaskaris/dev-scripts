@@ -46,6 +46,20 @@ else
   echo "ENABLE_VIRTUAL_INTERFACES already set"
 fi
 
+# The agent's connectivity checker (assisted-installer-agent/src/connectivity_check/util.go)
+# only uses physical, bonding, or VLAN interfaces for outgoing L2 checks — bridge
+# interfaces are explicitly excluded. When the machine network IP lives on br0,
+# arping is never performed on that subnet, so "belongs-to-majority-group" always
+# fails. ENABLE_VIRTUAL_INTERFACES only affects inventory reporting on the
+# assisted-service side, not the agent-side connectivity checker. Until the agent
+# is patched to support bridge interfaces, we must disable this validation.
+if ! sudo grep -q "^DISABLED_HOST_VALIDATIONS=" "${ENV_FILE}"; then
+  echo "DISABLED_HOST_VALIDATIONS=belongs-to-majority-group" | sudo tee -a "${ENV_FILE}" > /dev/null
+  echo "Injected DISABLED_HOST_VALIDATIONS=belongs-to-majority-group into assisted-service.env"
+else
+  echo "DISABLED_HOST_VALIDATIONS already set"
+fi
+
 # ── Rebuild cpio archive with absolute paths ──────────────────────────────────
 
 # The original archive uses absolute paths. We chroot into the extracted tree
