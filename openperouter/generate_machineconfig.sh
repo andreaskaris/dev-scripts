@@ -70,9 +70,11 @@ add_file "${QUADLETS_DIR}/frr.container"                  "/etc/containers/syste
 add_file "${QUADLETS_DIR}/reloader.container"             "/etc/containers/systemd/reloader.container"             420
 add_file "${QUADLETS_DIR}/frr-sockets.volume"             "/etc/containers/systemd/frr-sockets.volume"             420
 add_file "${QUADLETS_DIR}/openperouter-node-index.service" "/etc/systemd/system/openperouter-node-index.service" 420
+add_file "${QUADLETS_DIR}/openperouter-raw-config.service" "/etc/systemd/system/openperouter-raw-config.service" 420
 
-# Script -> /usr/local/bin/ (mode 0755)
+# Scripts -> /usr/local/bin/ (mode 0755)
 add_file "${QUADLETS_DIR}/openperouter-node-index.sh"     "/usr/local/bin/openperouter-node-index.sh"              493
+add_file "${QUADLETS_DIR}/openperouter-raw-config.sh"     "/usr/local/bin/openperouter-raw-config.sh"              493
 
 # Config files (mode 0644)
 add_file "${CONFIG_DIR}/node-config.yaml"                 "/var/lib/openperouter/node-config.yaml"                 420
@@ -142,6 +144,8 @@ cat >> "${OUTPUT}" <<'UNITS'
           name: frr-sockets.service
         - enabled: true
           name: openperouter-node-index.service
+        - enabled: true
+          name: openperouter-raw-config.service
 UNITS
 
 echo "Generated ${OUTPUT}"
