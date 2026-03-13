@@ -1,7 +1,21 @@
 #!/bin/bash
-# Inject ENABLE_VIRTUAL_INTERFACES=true into assisted-service.env
-# so that the assisted-service inventory includes virtual interfaces (bridges, etc.).
+# Patch assisted-service.env with settings required by openperouter.
 # Runs before assisted-service-pod.service.
+#
+# - ENABLE_VIRTUAL_INTERFACES=true: tells assisted-service to include virtual
+#   interfaces (bridges, etc.) in its inventory, which is required for the
+#   bridge IP to pass the belongs-to-machine-cidr validation.
+#
+# - DISABLED_HOST_VALIDATIONS=belongs-to-majority-group: the agent's
+#   connectivity checker (assisted-installer-agent/src/connectivity_check/util.go)
+#   only uses physical, bonding, or VLAN interfaces for outgoing L2 checks.
+#   Bridge interfaces are explicitly excluded. When the machine network IP
+#   lives on br0, arping is never performed on that subnet, so the
+#   "belongs-to-majority-group" validation always fails.
+#   ENABLE_VIRTUAL_INTERFACES only affects inventory reporting on the
+#   assisted-service side — it has no effect on the agent-side connectivity
+#   checker. Until the agent is patched to support bridge interfaces, we
+#   must disable this validation.
 #
 # The env file is initially created by the appliance ignition, then
 # overwritten by load-config-iso.sh when the config-image ISO is mounted.
@@ -27,16 +41,15 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 if grep -q "^ENABLE_VIRTUAL_INTERFACES=" "$ENV_FILE"; then
-    echo "ENABLE_VIRTUAL_INTERFACES already set. Exiting cleanly."
-    exit 0
-fi
-
-echo "Injecting ENABLE_VIRTUAL_INTERFACES=true..."
-if echo "ENABLE_VIRTUAL_INTERFACES=true" >> "$ENV_FILE"; then
-    echo "SUCCESS: ENABLE_VIRTUAL_INTERFACES injection complete."
+    echo "ENABLE_VIRTUAL_INTERFACES already set. Skipping."
 else
-    echo "ERROR: Failed to write to $ENV_FILE."
-    exit 1
+    echo "Injecting ENABLE_VIRTUAL_INTERFACES=true..."
+    if echo "ENABLE_VIRTUAL_INTERFACES=true" >> "$ENV_FILE"; then
+        echo "SUCCESS: ENABLE_VIRTUAL_INTERFACES injection complete."
+    else
+        echo "ERROR: Failed to write ENABLE_VIRTUAL_INTERFACES to $ENV_FILE."
+        exit 1
+    fi
 fi
 
 if grep -q "^DISABLED_HOST_VALIDATIONS=" "$ENV_FILE"; then
@@ -52,7 +65,3 @@ else
 fi
 
 exit 0
-else
-    echo "ERROR: Failed to write to $ENV_FILE."
-    exit 1
-fi

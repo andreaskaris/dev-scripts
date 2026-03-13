@@ -1,10 +1,10 @@
 [Unit]
-Description=Enable Virtual Interfaces in Assisted Service
+Description=Patch Assisted Service installer config for openperouter
 Before=assisted-service-pod.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/enable-virtual-interfaces.sh
+ExecStart=/usr/local/bin/patch-installer-config.sh
 Restart=on-failure
 RestartSec=2
 RemainAfterExit=yes

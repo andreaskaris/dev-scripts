@@ -133,12 +133,14 @@ if [[ -d "${SCRIPTDIR}/quadlets" ]]; then
         "${SCRIPTDIR}/quadlets/frr.container:/etc/containers/systemd/frr.container:420"
         "${SCRIPTDIR}/quadlets/reloader.container:/etc/containers/systemd/reloader.container:420"
         "${SCRIPTDIR}/quadlets/frr-sockets.volume:/etc/containers/systemd/frr-sockets.volume:420"
-        "${SCRIPTDIR}/quadlets/openperouter-node-index.service:/etc/containers/systemd/openperouter-node-index.service:420"
         "${SCRIPTDIR}/quadlets/openperouter-node-index.sh:/usr/local/bin/openperouter-node-index.sh:493"
-        "${SCRIPTDIR}/quadlets/enable-virtual-interfaces.sh:/usr/local/bin/enable-virtual-interfaces.sh:493"
+        "${SCRIPTDIR}/quadlets/openperouter-raw-config.sh:/usr/local/bin/openperouter-raw-config.sh:493"
+        "${SCRIPTDIR}/quadlets/patch-installer-config.sh:/usr/local/bin/patch-installer-config.sh:493"
         "${SCRIPTDIR}/openpeconfig/node-config.yaml:/var/lib/openperouter/node-config.yaml:420"
         "${SCRIPTDIR}/openpeconfig/openpe_config.yaml:/var/lib/openperouter/configs/openpe_config.yaml:420"
         "${SCRIPTDIR}/openpeconfig/default_bridge:/etc/ovnk/default_bridge:420"
+        "unit-file:openperouter-node-index.service:${SCRIPTDIR}/quadlets/openperouter-node-index.service"
+        "unit-file:openperouter-raw-config.service:${SCRIPTDIR}/quadlets/openperouter-raw-config.service"
         "unit-file:enable-virtual-interfaces.service:${SCRIPTDIR}/quadlets/enable-virtual-interfaces.service"
     )
 fi

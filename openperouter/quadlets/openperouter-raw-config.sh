@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Extract the last octet from the br0 bridge IP and write it as nodeIndex
-# in the openperouter node-config.yaml.
+# Generate the per-node openpe_raw_config.yaml with the node's bridge IP
+# announced via BGP in the red VRF.
 
 set -euo pipefail
 
 BRIDGE_NAME="${1:-br0}"
-CONFIG_PATH="/var/lib/openperouter/node-config.yaml"
+RAW_CONFIG_PATH="/var/lib/openperouter/configs/openpe_raw_config.yaml"
+ASN="64514"
+VRF="red"
 MAX_RETRIES=60
 
 get_bridge_ip() {
@@ -28,13 +30,15 @@ if [ -z "${BRIDGE_IP}" ]; then
   exit 1
 fi
 
-# Extract the last octet
-NODE_INDEX="${BRIDGE_IP##*.}"
+echo "Generating ${RAW_CONFIG_PATH} with network ${BRIDGE_IP}/32 (from ${BRIDGE_NAME})"
 
-echo "Setting nodeIndex to ${NODE_INDEX} (from ${BRIDGE_NAME} IP ${BRIDGE_IP})"
-
-mkdir -p "$(dirname "${CONFIG_PATH}")"
-cat > "${CONFIG_PATH}" <<EOF
-nodeIndex: ${NODE_INDEX}
-logLevel: debug
+mkdir -p "$(dirname "${RAW_CONFIG_PATH}")"
+cat > "${RAW_CONFIG_PATH}" <<EOF
+rawfrrconfigs:
+  - rawConfig: |
+      router bgp ${ASN} vrf ${VRF}
+        address-family ipv4 unicast
+          network ${BRIDGE_IP}/32
+        exit-address-family
+      exit
 EOF
