@@ -60,7 +60,15 @@ function create_factory_image() {
     "${openshift_install}" --dir="${asset_dir}" --log-level=debug agent create unconfigured-ignition
     base_iso_url=$(oc adm release info --registry-config "$PULL_SECRET_FILE" --image-for=machine-os-images --insecure=true $OPENSHIFT_RELEASE_IMAGE)
     mkdir -p $HOME/.cache/agent/image_cache
-    oc image extract --path /coreos/coreos-${ARCH}.iso:$HOME/.cache/agent/image_cache --registry-config "$PULL_SECRET_FILE" --confirm $base_iso_url
+    local coreos_iso="$HOME/.cache/agent/image_cache/coreos-${ARCH}.iso"
+    local coreos_iso_digest="$HOME/.cache/agent/image_cache/coreos-${ARCH}.iso.digest"
+    if [[ -f "${coreos_iso}" && -f "${coreos_iso_digest}" && "$(cat "${coreos_iso_digest}")" == "${base_iso_url}" ]]; then
+        echo "CoreOS ISO already cached for ${base_iso_url}, skipping extraction."
+    else
+        echo "Downloading CoreOS ISO from ${base_iso_url}..."
+        oc image extract --path /coreos/coreos-${ARCH}.iso:$HOME/.cache/agent/image_cache --registry-config "$PULL_SECRET_FILE" --confirm $base_iso_url
+        echo "${base_iso_url}" > "${coreos_iso_digest}"
+    fi
     local agent_iso_abs_path="$(realpath "${OCP_DIR}")"
     podman run --pull=newer --privileged --rm -v /run/udev:/run/udev -v "${agent_iso_abs_path}:${agent_iso_abs_path}" -v "$HOME/.cache/agent/image_cache/:$HOME/.cache/agent/image_cache/" quay.io/coreos/coreos-installer:release iso ignition embed -f -i "${agent_iso_abs_path}/unconfigured-agent.ign" -o "${agent_iso_abs_path}/agent.iso" $HOME/.cache/agent/image_cache/coreos-${ARCH}.iso
 
@@ -541,8 +549,15 @@ function agent_iscsi_update_nodes() {
 function create_appliance() {
     local asset_dir="$(realpath "${1}")"
 
+    # Use a persistent cache directory to avoid re-downloading release images (~20GB) on every run.
+    # The appliance tool stores downloaded images in /assets/cache; by bind-mounting a persistent
+    # directory there, the cache survives ocp_cleanup which removes ${OCP_DIR}.
+    local appliance_cache_dir="${WORKING_DIR}/appliance-cache"
+    sudo mkdir -p "${appliance_cache_dir}"
+
     sudo podman run -it --rm --pull newer --privileged --net=host \
         -v "${asset_dir}:/assets:Z" \
+        -v "${appliance_cache_dir}:/assets/cache:Z" \
         "${APPLIANCE_IMAGE}" build --debug-base-ignition
 }
 
