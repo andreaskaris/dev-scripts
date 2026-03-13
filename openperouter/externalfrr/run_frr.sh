@@ -12,14 +12,18 @@ set -euo pipefail
 #   - An FRR container peering BGP EVPN with the node
 #
 # Usage:
-#   ./run_frr.sh [node_ip]
+#   ./run_frr.sh [node_ip ...]
 #
-# node_ip: the node's IP on the extra network (default: 192.168.150.20)
+# node_ip: one or more node IPs on the extra network (default: 192.168.111.80)
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # --- Configuration ---
-NODE_IP="${1:-192.168.111.80}"
+if [[ $# -gt 0 ]]; then
+    NODE_IPS=("$@")
+else
+    NODE_IPS=("192.168.111.80" "192.168.111.81" "192.168.111.82")
+fi
 LOCAL_IP="${LOCAL_IP:-192.168.150.1}"
 LOCAL_ASN="${LOCAL_ASN:-64512}"
 REMOTE_ASN="${REMOTE_ASN:-64514}"
@@ -40,7 +44,7 @@ echo "External FRR for EVPN peering"
 echo "============================================="
 echo "  Local IP:       ${LOCAL_IP}"
 echo "  VTEP IP:        ${VTEP_IP}/32"
-echo "  Node IP:        ${NODE_IP}"
+echo "  Node IPs:       ${NODE_IPS[*]}"
 echo "  Local ASN:      ${LOCAL_ASN}"
 echo "  Remote ASN:     ${REMOTE_ASN}"
 echo "  VNI:            ${VNI}"
@@ -123,10 +127,14 @@ router bgp ${LOCAL_ASN}
  no bgp ebgp-requires-policy
  no bgp network import-check
  no bgp default ipv4-unicast
- neighbor ${NODE_IP} remote-as ${REMOTE_ASN}
+$(for node_ip in "${NODE_IPS[@]}"; do
+echo " neighbor ${node_ip} remote-as ${REMOTE_ASN}"
+done)
  !
  address-family ipv4 unicast
-  neighbor ${NODE_IP} activate
+$(for node_ip in "${NODE_IPS[@]}"; do
+echo "  neighbor ${node_ip} activate"
+done)
   network ${VTEP_IP}/32
   redistribute connected
  exit-address-family
@@ -136,7 +144,9 @@ router bgp ${LOCAL_ASN}
  exit-address-family
  !
  address-family l2vpn evpn
-  neighbor ${NODE_IP} activate
+$(for node_ip in "${NODE_IPS[@]}"; do
+echo "  neighbor ${node_ip} activate"
+done)
   advertise-all-vni
   advertise-svi-ip
   default-originate ipv4
