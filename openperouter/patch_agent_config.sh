@@ -33,6 +33,7 @@ AGENT_CONFIG="${WORKING_DIR}/ocp/${CLUSTER_NAME}/agent-config.yaml"
 INSTALL_CONFIG="${WORKING_DIR}/ocp/${CLUSTER_NAME}/install-config.yaml"
 
 NIC_NAME="enp2s0"
+PROV_NIC_NAME="enp1s0"
 
 # NTP server reachable during agent discovery phase (host's baremetal IP)
 NTP_SERVER="${NTP_SERVER:-192.168.111.1}"
@@ -103,6 +104,13 @@ for i, host in enumerate(cfg['hosts']):
                     'address': [{'ip': nic_ip, 'prefix-length': ${NIC_PREFIX}}],
                     'dhcp': False,
                 },
+            },
+            {
+                'name': '${PROV_NIC_NAME}',
+                'type': 'ethernet',
+                'state': 'up',
+                'ipv4': {'enabled': False},
+                'ipv6': {'enabled': False},
             },
             {
                 'name': 'dummy0',

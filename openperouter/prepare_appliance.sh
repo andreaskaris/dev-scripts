@@ -150,3 +150,8 @@ if [[ ${#embed_args[@]} -gt 0 ]]; then
 else
     echo "Nothing to embed into appliance ISO"
 fi
+
+# --- Embed ignition hack script and service ---
+if [[ -x "${SCRIPTDIR}/hackagent.sh" ]]; then
+    "${SCRIPTDIR}/hackagent.sh" "${appliance_iso}"
+fi
