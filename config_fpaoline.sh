@@ -30,6 +30,7 @@ export OPENSHIFT_RELEASE_TYPE="ga"
 # --- NETWORKING ---
 export IP_STACK="v4"
 export NETWORK_TYPE="OVNKubernetes"
+export OVN_LOCAL_GATEWAY_MODE=true
 #export EXTERNAL_SUBNET_V4="10.10.0.0/24"
 
 # Extra network for external connectivity (adds a third NIC to the VM)
