@@ -8,54 +8,81 @@ metadata:
 spec:
   config:
     ignition:
-      version: 3.4.0
+      version: 3.5.0
     storage:
       files:
         - contents:
             compression: ""
             source: data:,nodeIndex%3A%201%0AlogLevel%3A%20debug%0A
           mode: 420
+          overwrite: true
           path: /var/lib/openperouter/node-config.yaml
         - contents:
             compression: gzip
-            source: data:;base64,H4sIAAAAAAAC/3SSUW/TMBSF3/0rDk7ENqQs69SnslYaNCuRoK0KD0gIVU5801pL7chx0kKb/46SAUuHeM3N8f0+neu9CqvShonSIekaiSi3zEN0cFakDm5LyEXpYFJHDpk1u+5bYm+QWCU3hHgJoSX2VjmCchAltJEUa0kH5kHpLmAK0gVZUzmy3TxIjc7U5vqH2OXXjJXkEFBlUKiCMqFyxt6t4uksWs/vP0Vj7h8HoyCxNw1n7xfzh3i2Xt5/+TDmYS1smKsk7C8IXy7gjHmY0ZNPpmzpEC/rIYSUlsoSRv+26oyUdmQzkdIfhHg59i9VgWCIwHQhlFuzh6Qa3D/2QBuO20koqQ51lec4QewfcXEsrNIO/rC5wAlp5RDIEEE2wAlbEhLB4IoxleEbgp+9F+Nlw/H9bcumGUDp1oBHq9ViNcLcnCtkptKyFXnJM3l922YPymHAMsX+2y6bL6bROp5Po6/jPoPnvbluOGNP6z+Tc0pvnjuGM/CPz9kGl92ZnHO0Z9L3uuKM7R6lsggKcP9SKqvFjlr5Xr8Nv+IsFQ6Tfwa4u4sWD+wvxugcguVm85FqykeQlFQb1v78KwAA///Dx5OF7AIAAA==
+            source: data:;base64,H4sIAAAAAAAC/1yPQXODIBSE7/6KN7lLgBqbcOw/wfBqmCFP5kFs/PcdUVMbbux+C7vhYySfTAVQw8jfBhhdBQAwkjegpFwuz2ApDpwNNJ/nSxX0LjWDWq3gvyfeUrMWdG8z/tjJx5KfTw0HddFCtWehlBTqqJtDsW5DynebMvKG5imigeDp8aw79q7H1SjSV1E2FoDsHQ10LKsHOeRgp7WzTWSgbU6qKSyOkbbUmDFeveMyXrQnIYU86oUjf92VRoo6LbMJfX/rBt65ry/0q451jjElA39rlVDVbwAAAP//DZyBRYMBAAA=
+          mode: 420
+          overwrite: true
+          path: /var/lib/openperouter/configs/openpe_config.yaml
+        - contents:
+            compression: ""
+            source: data:,br0%0A
+          mode: 420
+          overwrite: true
+          path: /etc/ovnk/default_bridge
+        - contents:
+            compression: gzip
+            source: data:;base64,H4sIAAAAAAAC/3ST0W/iRhjE37+/YrpYPejJOERRHyBEShvf1VIPEBepkaoKrdnPsIrZtdZrkhb8v1c2aWJS5dWfx/Obkaf3Q1SVLkq1idjskcpySz3Ez97JtYffMnJZeti1Z4/M2V37LHUXSJ1WG0aygDQKT057hvaQJYxVnBjFz9SDNq3AFmwKdrby7Np7uLYm05vh33KXD4lK9gi5sih0wZnUOdEvy+Tua7ya3X6LpyI4jMZh6i5qQb/OZ1+Sr6vF7f1vUxHtpYtynUZdg+i9gaBvtw+rZXy/TOLv058viDbsV6cAK130BzgQoAuEVwgtpFIO5dY+QfEeIjh0UGqBy5tI8T4yVZ7jCPn0iE+HwmnjEVzVn3DEuvIIVYQwG+GILUuFcITjEd5VTDVRD39I7ZFZ99Jm26S32LCHNEgW+6uWgsvyvx6SxVQIaiT9PvR0NIG+nnZiTaA/f8ZgMIGyBLypgv5Z2EGTNMOfCE0nWrKoBf6aNDiGACB1LB8JyDQBvN5aiIZZm02Lfd7JB+joS+95V3gEB11HwaGDWw+Gw6EgoMyZC1ySsoaJTmT/fEx2QomXy/lyjJk998tsZRSseY8ns+a3O/fHC1spcPPjZfPlZ+0xokzThwOg2fwuXiWzu/hh2iXs9X4a1oLoBPedfdvT6wyaeoLDm7ZGv13SO8pkgW7qgSDaPSrtEBYQQV9pZ+SOm2o6E6jFQNBaetz874Dr63j+hV4xxucQlNvN77znfAzFabWh5uV/AwAA//9J7JzaDwQAAA==
           mode: 493
+          overwrite: true
           path: /usr/local/bin/openperouter-node-index.sh
         - contents:
             compression: gzip
-            source: data:;base64,H4sIAAAAAAAC/3xSwW4UMQy95yuszgWkzi43JKQ5FMoBIZVVt4jDqgdv4pmxyNhR4lDt36MM21Z7oNf3/OL3XtyBV7GsMVJOGjZJg+vgRyLZfb3XapThy8sA7BrrOniYuUDSsIqRpYDNdKl6fRZsRoMFBScqDR95qhmNVa5dB0L2pPk3CC5UEnoq14AS4Hs9UhYyKsBiNP1TbJw7/BS2R3dLxWdODRze8nurvi4ktsqH2SyVT9vtxDbX48brstVEkiivYvcLxcpw9tSrRBbaGOaJzN2MRvk/nDvsNDy6rq1co0APTxwj+Exo1OAFZe2ssQGuyqkYLaG/6P/K7TTc4ULDBexcB3f6WhGUGTPLBEIUKMCoF4W/CzRijQZcNK653zt32FP+w56ayXsqhtkgaWR/gh7yCxCAR2CDETkWdx4cVPoG1EzNygMvpNXWtcU0pWalXUCzeib3pmlPfvj4wbnDNymGMbbVN9V0QWOPMZ6ABI+RwJ7vCQ2OqrZ+A4XPp+Gc5LnmvwEAAP//ViO0ma8CAAA=
+            source: data:;base64,H4sIAAAAAAAC/3STUW/iRhSF3++vOJ1YDWhlvKR0H5IQid1CysMS5KyylarKGphrGAVmrPHYdGv83ytjdpeg5NGaM/d+53jOxS9RkbtooU3EpsRC5mu6wD0bdtIz/JqRsQuNVQybsck4cXKXLK1J9ar3TW432Gm/Pggb0WWOhdNqxZjO6QLSGFuYJSuUWuLj/RzaHLSOFZ7iSY8oZ4+QC4tMZ5xKvSH6GE//uB8ns9Hn8VAEVf86XLj3taB49DX59DCbTO+T+ejLn0MRldJFG72IWjRnC88uauHy6HVeQaPH2VB8GPzeHwh6iidD4VgJ+jz6K4nHX+Lp+HH44T3Rin3SWkl01umiIkBnCAcILaRSDvna7qC4hAiqE+Ra4OouUlxGpthssIfcPeOyypw2HsGgvsQey8IjVBHCtI891iwVwj72e3hXMNVEF/gqtUdq3SGuY6beYsUe0mA6LwcHCs7z73lN50MhqLnS6UAP+zfQt8MTWzfQ796h272BsgT8vBV0XpjtNk5T/I3QnFibzmuBf24aHEMAsHAsnwlINQG8XFuIhlmb1QH7ZSZvoKMjvedt5hFUuo6C6gS37vZ6PUFAvmHOcEXKGiZqyf57m6xFGcfxQ3yNmX25L7WFUbDmHE+mnhvm0/04suUCd79eNZP/1R59SjVRu+TYk8ZyUJ29zrothmG/s+4Zp7TRb1fopM5uzyi6gmj7rLRDmEEEHaWdkVturJ4PF11BS+lx9+ohbm/HDxNycpc6d6zDNQEhnNx9OnxfY3/4i0DbGixWGYJq9DirUboUQfUUT+qjBN/zC1O51Ztv0Fk5QGH0Uub+hwZvmf2haAIMX46inyfUMP8fAAD//zOkhemRBAAA
+          mode: 493
+          overwrite: true
+          path: /usr/local/bin/openperouter-raw-config.sh
+        - contents:
+            compression: gzip
+            source: data:;base64,H4sIAAAAAAAC/6xW0W7bxhJ951ecUEZsX4hUHOD2wYGDOo7cCnDtQHKchyIVVuSQnHi1S+8uJQtNgX5Ev7BfUuxSklWrcpqgfjG1mjlzZs6ZpTrPehNWvYmwVdTBO+GyCsJato7yxJKZcUYpqRnm7CpYco5VaWHormFDOSYL6JpUTUY3jkwadTBslMWECm1oCyqpdZ6uYKNO1EGC/uXpm4v++GYwvH5/ejEeXF73h+enZ/3RiTMNHcORlHYLCU6DVSabnDBj4xohow4AVo5MITKyOJgYzkuyXZDL0kOwAjsLVjNSTptFF/OKswq80U+hDVxFAapNx+Cdr1ULa/03mJDUqrSJ08lUZBUrSjLODWZCci4ca7Vq7O1g5Dt7O/7xanQ9vjm9GLw9vR5cXY5O/obxSRt2i6Q0uqmPQwlRknL7NpDItFKUOZ6xWyCrKLslg4P1NFhZJ6Qkk4SknjVZbzNlHFJ6jWOZlvowQGolF2gsWdTVwnImZBcTrXJWZRfa4Obi9HJzjn4munGlZlXi4mXLwqYB6007o41oYQh0X0vO2MkF6D5olKf4UJEK7S3HBkVurs0tBu8ClOQZWWiFiXnRhTC1L8cWimZkUJMptJlS7iNcJRxsM1HkurB6rVi8c7Dxhj4Qci4WFoVguWxjpwfbYYmioGzTOjBUa+N3oaXTlt/yqOWc8Ofvf4AdKmGhNChALbNapZMQtqlaq3wrdor3yrF8CPczqf2iUu6NaZvaU1m59UGJLuYtrWljHXK2YiIJrmK75dXriuCXvGBJHp4VOxZSLpAZEq7d80CgriULlRG49DFadf25ijrQMzJzw86R8tFSizzJtCq4TNjq1FaYrwywOp4Kv16jK19yqhvlKPdyfCDMBbvgu0cwvuGCFdsKB6xyzlbkRv3hzeCsPx78dPpDHxNiVUYdf1/5rfc1fWuHq2uJ1Sc/au93pyFmmvM2Z7OLNIr6lzfj88FF/yTuNdb0pM6E7NlKGOo91rr3T7dmHEWUVRrxB8HBLE+2lKZpHPkI9qT3Dizd4QjfvTh8hVxHANDBOau8VcJbhbbAwn3g9REqbx0ELrz9Mj2tJTnKA1Cj2J3sHdiFdTTNnIRk6xJ/arH/CPP7/+0jSZROJJWk8va5FiUZvHzdy2nWU42U+Awxv8X+r7Vh5bB39Ns+PqMikSM5OgxFucDPSBTiPV8oxkc8f44HCmyTZVNJctcwuXXgRplXrd2w/Gun+3gIByHvMKzcuu80XmdNDInb8Kng8M9Kohr/j3KtKIoCz2dICsR7KwfE+LhRui3bHw6vhsdYxyDX5Hfcge7ZOojCkQlWZlWmOBcs/UPLg+7Z4SgqONQrDdVI7hD/svttGG/S2Saz8wYT0pDIF34ZUoxuua5bFiQtbQAMVjvxhRdycOlSzi+UDvExXr/ewfyh+Oj92Vl/NDp+4iJe7qxWa0lXk1z1saWMn3h7SfqVpifAnX6QccMoS5GWTtnSavcL/mmtduZ9vVbf8BtjW8BvAPk6VXc3/B+ouhv8X6saTl5EfwUAAP//ju0wcA0LAAA=
+          mode: 493
+          overwrite: true
+          path: /usr/local/bin/patch-installer-config.sh
+        - contents:
+            compression: gzip
+            source: data:;base64,H4sIAAAAAAAC/3ySQWsbMRCF7/oVQ/bSQrzurVDYQ9r0UAqpiVN6MDmMpdndodoZIY0a/O+LNk6CofT6np7m0xt14FUsa4yUk4Y+aXAd/Egku6/3Wo0yfHk9ALvmug4eZi6QNKxhZClgM12m3q4Fm9FgQcGJStNHnmpGY5Vr14GQPWn+DYILlYSeyjWgBPhej5SFjAqwGE3Pid65w09he3S3VHzm1MThf7y36utCYmt8mM1S+bTdTmxzPfZel60mkkR5DbtfKFaGM9NGJbJQb5gnMnczGuV/e+Aza18o/2FPzh12Gh5d1+av74INPHGM4DOhUZMXlLXA5ga4KqditITNxTKu3E7DHS40XMjOdXCnb31BmTGzTCBEgQKMetH+u0Aj1mjAReNawnvnDvtn1AZ5T8UwGySN7E+wgfwqBOAR2GBEjsWdDw4qmybUTA3lgRfSauvYYppSQ2nfoaGezb1p2pMfPn5w7vBNimGMbfRNNV3Q2GOMJyDBYySwl8+FBkdVW3dC4fNpOL/kZR9/AwAA//8VtyYOvAIAAA==
           mode: 420
+          overwrite: true
           path: /etc/containers/systemd/controllerpod.pod
         - contents:
             compression: gzip
-            source: data:;base64,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
+            source: data:;base64,H4sIAAAAAAAC/4xXX2/juBF/56cYwA97B0RWcofiWgN6cBKnNa61XTvZQxEsAlocSUQkUiEpe13chz8MKclSnMXugwGKnH+c+c1v6AmkWjmjyxLNlJZcKjRsAusa1Wax1Y1DA3e9jF+2MmwCj4W00KuBaZQFV+BY++wBjtIVkDVlCYW2DuzJOqyApylaO2UTWDqouOI5WjC9cibzxnAntboChe6ozSsoXqGteYr2CrgS8HuzR6PQoQWpHOZBnkxu8a2RBi3URh5kiTkKqLRAr4ZfHSorDxjiyWSJ72Jiz09Kui/sHm1qZE1Wk+/n5l6nTYXK+SiSwrnazuI4l65o9tNUV7GuUdUY7sjYc6/5hU3OZkBWPEeIoKkFdwiOsl1KheA0pAVXOcIBjZVaWbYk2eSt4aep1HFWc02ScXAxE3j4lbEJbLQAbq1OpQ8NIkgNckobb5yuuJMpCKxRCVTpCbQaVK/WIqq1mFo0B5ki22iRjE6ntRZsdAEqky+6VB4XJNCfrniFAwOkuWrLm/Ka72UpnUQLP1mywi08bLeQadODQNcY6mx/ZnMh7jqlU3I337ysFo8vt8vV/ctusf28vFtAtzm//89y1X9t53/49e5/u3BCcfyL0NC6kSoPgImGSFaIwgbUdOEEyLAJ/LfhokQHijuClpAGU7+i4KOolU9Ima2GH53nAQ4PumwqhEo3ytk2t20IpkP2OxSHOMjZjE0g6pPa9wz1mKyb0ufOi1BmR53WtiFh2AsM+mu+WZ6vGsEuxHl/2xATVFWjZHo2vPYdw0tYf94NO3NY7HMvQ+RTVOkDJZ3ETeb39+iOiGogyj77xCSxaVSs0Ck7GyyNLbhBD8bLq43qeDSSLhUkrsBgqbnwyeXi7ARdGnftGmfGzC53Bi59DfdGihzBOurcCF6bPQYnnniCcDjtvRy4iUu5j6mKQX0WB8Gh9Z3zXfr+ThRwpFV56orz3uqQckL8ox2j+9Bro9MhBi+N+zKRGK2lsjUBXKveJx3N/D38KtgeIsXq9BVdW+/gRoTEBKEhVIaVFvvGxkHmZd/Yl2AnuPrWoTmydqDBYXeULi0696EztTm1gbwH6QRW68fFLIw534IgLaw3j8v1av7vKSyzoGJBaUd5cLwsUVz5RkDlQDfuzNo0jR41CGn5vkSv6W3OYC4EcPg0+QTceZ7cYy6VoibQmd/wrL/HUh+no8JSTqiMB+svNvtwcwCehTpIo5UP7sCNpEgsG+wmvz/dLu7Wq4flP5MWfPEZu2RiLoRsm3qjRcUVcJP7adfBop+zPU2stMMZPFm6UVCam5zaOuWNRXhrCbPglMkL3gx2XYEWISt57oknGviJ4IHeFOeHSH8GP7UsKUaT42Mq/DnYlcKzMQBEMA9w99+b5f1AcWyYWKbrhzN1BoONsx8bfHrcfdMgCfjpadDqsgnhnVOXDO//br+Nf7zbBcHGM4SAypWIPL76OrLFV0yTKMqMaTnrgu/oRw/GLGQsqrkrviFVSwFR1DFr1Pbex7IdL0R+4vosRdE5R0PGikKne9ZCXroC0gLTV+JaOQKDzIaEb52uLWW11kpIlV+xSU9AW7SOG5doFWVclo1BKLgSJXoFOmLB1V0lkmNOgb6tI6D33SyOb375bXo9vZ7ezP5x/febuPCS/4c//wT8Kh3ctLpLGmsHXia/XNt261FWqBuX/K3b2KIzEm3ya/u9Vg8hnoTuxtjzLrzBvvgHro8Mal3K9OTJOmyMMiAd0JUsu7wjZbCNINCx03VNnUrEc/5P0IrsnK53mCa/Xfv3pMGo8+aRZPsnJfR49mXsuJZedNKT2gmEVp8cZcc6/2eCGry3YxoFe8y0wXEg4P0FjO5ouTGYxI018V6quHoV0kBUX+LruwqX4/eHVUbP+R9RekfRjD0vw/Sgis67pzgvyxOg8uPCjf9qcQd7rR37gyuH4vaUCMx4U7qp4yZHx/4KAAD//w5VQ2XZDQAA
           mode: 420
+          overwrite: true
           path: /etc/containers/systemd/controller.container
         - contents:
             compression: gzip
             source: data:;base64,H4sIAAAAAAAC/3yTT08bTQzG7/MpLHJ5X0FCb5WQ9kBFK3GhUQLqIeLgzDi7I2btYeyF5ttXMyT8kUpvke2M/fyeZ2dQZDIqWcIiS3Az+JmJl99XrQo/Vis4/FzWrpvB7RAVsgTwwoaRFWygNlhfitxDQBqFAbnN7GI/FbQoDIWSYKBy/CsVXbgZLK+vgHEkzegJdMBSX4kKxLhNFMAEMCV5bpteHzEBjT1jastzEU+qpAvnNncc7d5dkfoSc13d/UvVlfhpJLZ2ZDeYZb04P++jDdN24WU8l0yc6QWU+4Vs2jHZs5SHuXCKTAvD0pO5y51R+aTnNksJ91WuhCYX5vAcUwJfCI1qeURuZGs3wInu1WgM81eHTtxSwg2O1L2W3Kf85lDocYqFAuykvGcEIzL2VCU3P98xZaKgjSzRR6zvcP/NVHUzuBGjC7jTuv1FzWXpFbbkcVKCxwlDIoMBFViA0eJTk70esFAHIRbytXY46hRyoV38DRiCNpEmEGiHU7KmksKbbIX/mOwMYvZnMJn+794u6ObzNt6d5hic26ypPEVP1YsVqWExyJKi3zdmx0KAuINosMOY1B0GO+F5LUyFKvnbOJJM1gCrSc5Veg1pdebQXJvkNfnu6xfnNteshinV1ZeTyYgWPaa0P0Qd7PhxocFW5OjPMQk9MRU0KR+SUxcyVZuw7EH3Y4r8oC2oFL7tuwOzYxD/BAAA//8bQriQ8wMAAA==
           mode: 420
+          overwrite: true
           path: /etc/containers/systemd/routerpod.pod
         - contents:
             compression: gzip
-            source: data:;base64,H4sIAAAAAAAC/3xVf08bORP+fz/FqEEtvH13t7zv6aoL2j8CpFV01zRKKOiKOOSsJ5sRXtv4RyASH/403iQkveqQEIs99oyf55lnerBwrqiNDoI0uqwHXy3qyXBqYkAHn6ZTuHjdzHowjdpDWGLaOv7kEGEqdIPAJ0g3JyAFtkaDdWZFknQD558n5fB6MoZF1HUgo4WisC6yHlwtycMuOTh8jOTQAypciYASamHFnBQFQg8L40BjeDLuAVqhRYMt6lBk2e03TeEuu0RfO7KcofqXV1yaOvJBkQKXIVjfL8uGwjLOi9q0pbGoLbp0Nstudyfvst7rNUCtaBByiFaKgBD4KYo0QjBQLxMkK3SejPZ8TmiY4yZYwooESLTKrLkS6Orug0cJOcE7//LXiK+viv+8dB/j4c396Mvg8/Dl3Q+MdfuPUawLMge1l92ffitIZ1kPJkaC8N7UlJ4OOdQORUAPIgbTikA1F4Vaoq7XYDR0F1gjc2tk4dGtqMZsYmS12ymskdkBMFq0CE8UlqSTUDhgtzsWLVYL5/jIeMPlAckbDcjEtus0dSgcTjaY3I+HV/fno/Hl/Ww4vR5dDCGHc9KS4beOVqSwQQnWuODh+PzzBE4//nayd3Zw+WU0hu4n5/IX1ESHO4WRDugWomZ4tOyg8Hvnp4MbgN35bx6BVzh0Mrj4fXgF3tQPGLZHZn/Ofkh5LRyZ6MGvfcAWhGxJkw+uI8dY7L58NpDyYgvRuvrp2w8ftV/iQW5GfahX5IxOulsJR2Ku0IMVnsXH2t0pay+yuhqNR/ezb+fT4WAynFbBReTLro2KLUJrok4vZXolrLpVZpBbbwME5OCXgqllcYBDZYREB/vm0/8OFUwccffDbPgH6fgMSsxRwXHU9BhTe4UD2yitkSdZVwlLK9/kK7oy+uVKuNJFXS6c63/nqgdSUicn7olWaBCuSZ7gQZsAawzgo2XtoIT5GrQItEJ4jEIqDCDJYc0r/OQ8tyQXpNgLLlI/wWR0CWmFEeA6nVGKLUMHbDpWsy7xwDW+2t1QlRjqcte+C5d+C0upw76u0DmSuGeYqINbW0M6ZMPdZ1XOSZdz4ZeHfemDcCFaqE3bCi1f7be1Cp+3yyANdga/MEqZJ9JNP+vBaQEXydQ8WHQt+WRs7BH78KYHd/CDqGv0DND/Cphxap/EwM4XSBPPBw5goNlXvGF8YC7qh8aZmOr7fwE3goKHaJn2Xz+Ax9po6XfSYr12mHOYMk3CPevBLwVcCVKvo4r3goEHRJvW9qZO1Jp0k6bb2ATsw9ERoK+FZeuhPUtK1oKr5NipaeWugwCfrdAMStaD2RKV2muuNvoA0SNf7Nc6iGc4xqIp/gtHRyIEbO1GeLv/TrLhM9ZVXsObetkaCfkUxHv3dIj227dQeiY7AZrnUEbvSkXzJB3JPLg80Q5vYXt19eEMog6k4PYW8gUkzW2lxii9vOyXleMjA393dwbSgFeM3+nZ621HR8fH+/Hv4RROTjhY4xkEQepnSd5k2e2sGyc8VafYVWmNonoNObjNwitLtAAKsGBOs014ZXTOC9ElL7qiFk0MnQaDsYm+A6qzTcgsGDvDuvr4IY1Fh/k2W2oBv5uMr9Qvjd/2vXE8p2jBd6/5ne8C4DP5kDhLUp84rBIXTE77IMlBbuEf3Z1ltyPtg1CKQRhsh7BQag2ok6wOrQ5EgLkxIbsROqA8X1cSFyKqUAThGgzZ3wEAAP//d9xTEM8JAAA=
+            source: data:;base64,H4sIAAAAAAAC/3xVf2/bOBL9X59iUAdtcj1JzfVwxTnQH07iFsZuXcNOE2yDbECLY3kQimT4w4mBfPjFULZjd4sNEEAmh5zhe2/e9GDhXFEbHQRpdFkPvlnUk+HUxIAOPk+ncPG6mfVgGrWHsMS0dfzZIcJU6AaBT5BuTkAKbI0G68yKJOkGzr9MyuH1ZAyLqOtARgtFYV1kPbhakoddcnD4GMmhB1S4EgEl1MKKOSkKhB4WxoHG8GTcA7RCiwZb1KHIstvvmsJddom+dmQ5Q/UPr7g0deSDIgUuQ7C+X5YNhWWcF7VpS2NRW3TpbJbd7k7eZb3Xa4Ba0SDkEK0UASHwUxRphGCgXiZIVug8Ge35nNAwx02whBUJkGiVWXMl0NXdB48ScoJ3/uXPEV9fFf966T7Gw5v70dfBl+HLu58Y6/Yfo1gXZMqFFYarKLvy+xJXH7OsBxMjQXhvakrPhhxqhyKgBxGDaUWgmgtCLVHXazAauguskbk1svDoVlRjNjGy2u0U1sjsABQtWoQnCkvSSSQcsNsdixarhXN8ZLzh8YDgDf8yMe06PR2KhpMNJvfj4dX9+Wh8eT8bTq9HF0PI4Zy0ZOitoxUpbFCCNS54OD7/MoHTT/8/2Ts7uPw6GkP3l3P5C2qiw526SAd0C1EzPFp2UPi989PBDcDu/HePwCscOhlc/Da8Am/qBwzbI7M/Zj+lvBaOTPTg1z5gC0K2pMkH15FjLHZfPhtIebGFaF398u2Hj9ov8SA3oz7UK3JGJ82thCMxV+jBCs/CY93uVLUXWV2NxqP72ffz6XAwGU6r4CLyZddGxRahNVGnlzK9ElbdKjPIbbcBAnLwS8HUsjjAoTJCooN94+n/gAomjrjzYTb8nXR8BiXmqOA4anqMqbXCgWWU1siTrKuEpZVv8hVdGf1yJVzpoi4XzvV/cNUDKamTE/dEKzQI1yQ/8KBNgDUG8NGydlDCfA1aBFohPEYhFQaQ5LDmFX5ynluSC1LsAxepn2AyuoS0wghwnc4oxXahAzYdq1mXeOAaX+1uqEoMdbm1Ha6X/wtLqcO+rdA5krhnlqiDW1tDOmTD3WdVzkmXc+GXh33pg3AhWqhN2wotX623tQqft8sgDXbmvjBKmSfSTT/rwWkBF8nQPFh0LflkauwR+/CmB3fwg6hr9AzQfwqYcWqfxMCuF0gTzwYOYKDZV7xhfGAu6ofGmZjq+1jAjaDgIVqm/X8fwGNttPQ7abFeO8w5TJkm4Z714L8FXAlSr2OK94KBB0Sb1vYmTtSadJMm29gE7MPREaCvhWXroT1LStaCq+TWqWnlroMAn63QDErWg9kSldprrjb6ANEjX+zXOohnOMaiKf4NR0ciBGztRni7XyfZ8BnrKq/hTb1sjYR8CuK9ezpE++1bKD2TnQDNcyijd6WieZKOZB5cnmiHt7C9uvpwBlEHUnB7C/kCkua2UmOUXl72y8rxkYG/uzsDacArxu/07PW2o6Pj4/3493AKJyccrPEMgiD1qyRvsux21o0TnqhT7Kq0RlG9hhzcZuGVJVoABVgwp9kmvDI654XokhddUYsmhk6DwdhE3wHV2SZkFoydYV19+pDGosN8my21gN9Nxlfql8Zv+944nlO04LvX/M53AfCZfEicJalPHFaJCyanfZDkILfwt+7OstuR9kEoxSAMtkNYKLUG1ElWh1YHIsDcmJDdCB1Qnq8riQsRVSiCcA2G7K8AAAD//0vHYCfLCQAA
           mode: 420
+          overwrite: true
           path: /etc/containers/systemd/frr.container
         - contents:
             compression: gzip
-            source: data:;base64,H4sIAAAAAAAC/2RUUW/bRgx+v19BwC8bUFlOh6GbAT1sbYoFKJbAWTegQR7OOkoicjoqPMqJh/744nSyYydPgu7Ij9/3kccFCHq2DmVZc1BLAcUs4HrAcHO54VFR4PNmAx85NNSOYpU4wGbOMQuzgFtyWFuBYz5oZxUEa6Qdxim9PksfB2cVI+zIwtdAzxC5fkA1C7DBgR0GTxhBO+xBOX0nDGex5wBPpB2PCgM7EIxqRePSmLuvgfTefMJYCw2pTPVGxIF2UjNL/cT12GPQiVjVqQ5xXZYtaTdulzX3JQ8YBpQJxJi7Y+a9WbzAAPW2RSgg2h7BHjXPRa7SbfU42v2S+AyxzJ91bykYs4AbdmBj5JqyUwXIGCJQyMjDdP0K/YZdlWEGdsuBnTmjFlJiMo3CZGUKON7+bXusDhOQ8v5lP/YIPY9Bo1lACnCwy6cNZx9zu2LS21lBN8G/YpWBqkakmMOXGWVd7qyUMoayEVl/S0X/4qjgSLBWln0ufix2NjpmAetvUMGN0M4qwu3lFwrjM3i7RT/LFvYeBZ6E0ozldOhQ8N1x1kHQung+bZyqHWiXqHV5bFIienaSaV/vUIQcnkw+BpX9wBQ0AcoYXkpuKVjZm8tjRFWeGn+czZr73gZXeAoIVtppPFMriqIRmeUAQAE3VruZ96sH1pBH+Ck5oBhgu58YZl9+npA8tx536CEjfeG2pdDCDmXLkXQ/BY2BnnPvpqCTlwpDKp06lF95ys1iQPBxxKgRGuH+pK65fMa6OtHw1uO0gZoTcpXD7dieE3mbNO+ONEZovXZQd1g/QAEP5P1Ja6g52SIRovKQ9sfAwVFo35kFxH1U7B1s8lapOBSNJT8KQmeD8xgPC8fkUh97Vz21qFA8XheQlse6LC/ef1iulqvlxfr31W+rspsi/4fv3wGfSeFizr0KirKzvnq/ivPRP9Qjj1r9ejjYoAphrH6Z/6/D58ynStqMubtF2VGN99P8TMxgYE/1Pi2O+eDMAVJIkqJ5qzE5ODOYOpsMGlJj09J4eddzyK3ycIt19WFlzN1ViGq9TzT+GJV7q1Rb7/eAwW49gnYUT3hYhS2zmv9sUHR/7iuHjR29LtVKi2p+BAAA///9co56lAYAAA==
+            source: data:;base64,H4sIAAAAAAAC/2RUUW/bRgx+v19BwC8bUFlOi6GbAT1sbYoFKJbAWTegQR7OOkoicjoqPEqJhv744STZsZMnwxT58fs+8rgCQc/WoaxLDmopoJgVXHcYbi533CsKfNnt4BOHiuperBIH2C01ZmVWcEsOSytwrAdtrIJgiTRgnMrLs/K+c1YxwkAWvgV6hsjlA6pZgQ0ObNd5wgjaYAvK6XfCcBZbDvBE2nCv0LEDwahWNK6NufsWSO/NZ4ylUJfaFG9EHGgnNYvUz1z2LQadiBWNahe3eV6TNv1+XXKbc4ehQ5lAjLk7Vt6b1QsMUGtrhAyibRHsUfPS5Cp9LR57O66J86qz7ClgPoNuHQ4fjFnBDTuwMXJJs0sZSB8iUJhRu+nzK+QbdsUM07Fbd+zMGa2QCpNhFCYbU8Lx61+2xeIw/VT3D/u+RWi5DxrNClKCg2GOVjx7OI8qJq2NFXQT/CtWM1BRiWRL+npG2eaDlVz6kFci2++p6Z8cFRwJlsoyzs2Pzc7Wxqxg+x0KuBEarCLcXn6l0D+Dt3v0i2xh71HgSSjt11wODQq+O+45CFoXzzeNU7cD7Ry1zA8jn4ieRWba1wOKkMOTrcegMnZMQROg9OGl5Z6CldFcHjOK/NT4416W3LY2uCytB1ipp9VMo8iySmSRAwAZ3FhtFt6vHldFHuGn5IBigP04MZx9+XlC8lx7HNDDjPSV65pCDQPKniPpOCX1gZ7n2U1JJ68UutQ6TWh+4al2FgOCjz1GjVAJtyd9zeUzlsWJhrcep+tTnZArHO77+pzI26LlbqQ1Quu1gbLB8gEyeCDvT0ZD1ckFiRCVu3Q7Og6OQv3OrCCOUbF1sJsvSsEhqyz5XhAaG5zHeDg2Zm71qXXFU40K2eN1BulwbPP84v3H9Wa9WV9sf9v8usmbKfM/+PED8JkULpbaq6Aog/XF+01cQn9Ti9xr8cshsEMVwlh8WP5fhy8znyJpM+buFmWgEu+n/ZmYQceeyjEdjiVw5gApJEnRvNWYHFwYTJNNBnVpsOlovLzrJeVWubvFsvi4MebuKkS13icav/fKrVUqrfcjYLB7j6ANxRMeVmHPrOZfGxTdH2PhsLK917VaqVHN/wEAAP//JMT6WZAGAAA=
           mode: 420
+          overwrite: true
           path: /etc/containers/systemd/reloader.container
         - contents:
             compression: gzip
             source: data:;base64,H4sIAAAAAAAC/4RRu44bMQzs9RWEt3EK232ALRI4AQIEieHESWG44Eq0V4hEChLXjv/+sA/f7V1zpcSZ4cywgnPOqyL2H2lZXyV0kUwFPxPx7steOqUMX/d7+DUi4M+EMBX8wEgOduIiMoxMOMsIP7D/Dw9VU8Hv1pcHxhcoLWZy0JDeiBi0pYGF7CBTEHSUwQoreqZcQAWIsQm9MysxduwtqheGq8dxl5OInl9WmuOBvZ7MlorNPvXg+r1QW7FdJNZBum5VU/m42Vy8tl2zthI3kogT5UHAmONIOz1XMeVjjAQruPkQwGZCpTcl8YBezIpfmFGr16ln/8ZUkzlw2V8pw9LRGbugfYtBLIYPpoLtMKuH94wSsKFQYClD/BH6vf+rMaX6VZjHwEpMwsTauzDm+I2LYgh9xk+dSkT1FkO4T/cAnd0VFRoRNX+Rldznez1ZXSvmC6l5CgAA///quWVlawIAAA==
           mode: 420
+          overwrite: true
           path: /etc/containers/systemd/frr-sockets.volume
-        - contents:
-            compression: gzip
-            source: data:;base64,H4sIAAAAAAAC/3TOMW6rQBDG8X5PsRfAnGCLZz0XVLFMohSIYg0f9ijLzGp2SOD2kbEipUk7Gv2/X/fGZL37jzIoZSPh0ML8SwafTxdZDOpZRjQ8YvWTyuyvSuMNvjm7f5NBA8O+RD8q4USMg0W9wdwRkyjCIGwqKUGzjIcC/aQBXvfwr4t7j2zlj5Tr2udX7163jCCMchdzpxVDa1Et1EvROskQU30lriWDM54j1UNf0YN/KHd3wRyJd/hpJQsbinNdw8ViSv3OwHjcwrwko2op0B/FdwAAAP//BzQRyioBAAA=
-          mode: 420
-          path: /etc/containers/systemd/openperouter-node-index.service
     systemd:
       units:
         - enabled: true
@@ -70,3 +97,51 @@ spec:
           name: reloader.service
         - enabled: true
           name: frr-sockets.service
+        - contents: |
+            [Unit]
+            Description=Set OpenPERouter nodeIndex from bridge IP
+            After=network-online.target
+            Before=controllerpod.service routerpod.service
+            Wants=network-online.target
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/openperouter-node-index.sh
+            RemainAfterExit=yes
+
+            [Install]
+            WantedBy=multi-user.target
+          enabled: true
+          name: openperouter-node-index.service
+        - contents: |
+            [Unit]
+            Description=Generate OpenPERouter raw FRR config from bridge IP
+            After=network-online.target
+            Before=controllerpod.service routerpod.service
+            Wants=network-online.target
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/openperouter-raw-config.sh
+            RemainAfterExit=yes
+
+            [Install]
+            WantedBy=multi-user.target
+          enabled: true
+          name: openperouter-raw-config.service
+        - contents: |
+            [Unit]
+            Description=Patch Assisted Service installer config for openperouter
+            Before=assisted-service-pod.service
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/patch-installer-config.sh
+            Restart=on-failure
+            RestartSec=2
+            RemainAfterExit=yes
+
+            [Install]
+            WantedBy=assisted-service-pod.service
+          enabled: true
+          name: enable-virtual-interfaces.service

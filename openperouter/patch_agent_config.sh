@@ -187,3 +187,18 @@ with open('${INSTALL_CONFIG}', 'w') as f:
     yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
 "
 echo "Patched ${INSTALL_CONFIG} successfully."
+
+# Update host dnsmasq to resolve api/apps to the bridge VIPs
+CLUSTER_DOMAIN="${CLUSTER_NAME}.${BASE_DOMAIN:-example.com}"
+DNSMASQ_CONF="/etc/NetworkManager/dnsmasq.d/openshift-${CLUSTER_NAME}.conf"
+echo "Updating dnsmasq: ${DNSMASQ_CONF}"
+echo "  api.${CLUSTER_DOMAIN}  -> ${API_VIP}"
+echo "  *.apps.${CLUSTER_DOMAIN} -> ${INGRESS_VIP}"
+sudo tee "${DNSMASQ_CONF}" > /dev/null <<EOF
+address=/api.${CLUSTER_DOMAIN}/${API_VIP}
+address=/.apps.${CLUSTER_DOMAIN}/${INGRESS_VIP}
+listen-address=::1
+cache-size=0
+EOF
+sudo systemctl reload NetworkManager
+echo "Reloaded NetworkManager dnsmasq."

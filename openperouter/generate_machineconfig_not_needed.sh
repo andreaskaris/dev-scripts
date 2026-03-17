@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# DEPRECATED: This script is no longer needed. MachineConfigs are now generated
+# by prepare_extra_manifests.sh using butane from openperouter-boot2.bu and
+# registry-appliance.bu source files.
 set -euo pipefail
 
 # Generate the 99-master-openperouter MachineConfig from source files.
