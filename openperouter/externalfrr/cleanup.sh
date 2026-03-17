@@ -8,6 +8,7 @@ set -euo pipefail
 
 CONTAINER_NAME="externalfrr"
 VNI=100
+VRF_NAME="red"
 VXLAN_IF="vni${VNI}"
 BRIDGE_IF="br${VNI}"
 VTEP_LO="lo-vtep"
@@ -62,6 +63,15 @@ if ip link show "${VTEP_LO}" &>/dev/null; then
     sudo ip link del "${VTEP_LO}"
 else
     echo "  VTEP loopback ${VTEP_LO} not found, skipping"
+fi
+
+# Remove VRF
+if ip link show "${VRF_NAME}" &>/dev/null; then
+    echo "  Removing VRF ${VRF_NAME}..."
+    sudo ip link set "${VRF_NAME}" down
+    sudo ip link del "${VRF_NAME}"
+else
+    echo "  VRF ${VRF_NAME} not found, skipping"
 fi
 
 echo "Done."

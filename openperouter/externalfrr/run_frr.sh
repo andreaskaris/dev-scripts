@@ -7,7 +7,8 @@ set -euo pipefail
 # This creates:
 #   - A VTEP loopback address (100.64.0.1/32)
 #   - A VXLAN interface (vni100) with VNI 100, neighbor suppression enabled
-#   - A linux bridge (br100) with vni100 as a port (default VRF)
+#   - A VRF "red" (table 10)
+#   - A linux bridge (br100) with vni100 as a port (VRF red)
 #   - A dummy loopback (advertised via redistribute connected)
 #   - An FRR container peering BGP EVPN with the node
 #
@@ -28,6 +29,8 @@ LOCAL_IP="${LOCAL_IP:-192.168.150.1}"
 LOCAL_ASN="${LOCAL_ASN:-64512}"
 REMOTE_ASN="${REMOTE_ASN:-64514}"
 VNI=100
+VRF_NAME="red"
+VRF_TABLE=10
 VTEP_IP="${VTEP_IP:-100.64.0.1}"
 VXLAN_IF="vni${VNI}"
 BRIDGE_IF="br${VNI}"
@@ -48,6 +51,7 @@ echo "  Node IPs:       ${NODE_IPS[*]}"
 echo "  Local ASN:      ${LOCAL_ASN}"
 echo "  Remote ASN:     ${REMOTE_ASN}"
 echo "  VNI:            ${VNI}"
+echo "  VRF:            ${VRF_NAME} (table ${VRF_TABLE})"
 echo "  VXLAN iface:    ${VXLAN_IF}"
 echo "  Bridge:         ${BRIDGE_IF}"
 echo "  Loopback:       ${LO_NAME} (${LO_IP})"
@@ -62,6 +66,15 @@ else
     sudo ip link add "${VTEP_LO}" type dummy
     sudo ip addr add "${VTEP_IP}/32" dev "${VTEP_LO}"
     sudo ip link set "${VTEP_LO}" up
+fi
+
+# --- VRF ---
+echo "Creating VRF ${VRF_NAME} (table ${VRF_TABLE})..."
+if ip link show "${VRF_NAME}" &>/dev/null; then
+    echo "  ${VRF_NAME} already exists, skipping"
+else
+    sudo ip link add "${VRF_NAME}" type vrf table "${VRF_TABLE}"
+    sudo ip link set "${VRF_NAME}" up
 fi
 
 # --- VXLAN interface ---
@@ -84,6 +97,7 @@ if ip link show "${BRIDGE_IF}" &>/dev/null; then
     echo "  ${BRIDGE_IF} already exists, skipping"
 else
     sudo ip link add "${BRIDGE_IF}" type bridge
+    sudo ip link set "${BRIDGE_IF}" master "${VRF_NAME}"
     sudo ip link set "${BRIDGE_IF}" up
     sudo ip link set "${VXLAN_IF}" master "${BRIDGE_IF}"
     # Enable neighbor suppression on the VXLAN interface
@@ -96,6 +110,7 @@ if ip link show "${LO_NAME}" &>/dev/null; then
     echo "  ${LO_NAME} already exists, skipping"
 else
     sudo ip link add "${LO_NAME}" type dummy
+    sudo ip link set "${LO_NAME}" master "${VRF_NAME}"
     sudo ip addr add "${LO_IP}" dev "${LO_NAME}"
     sudo ip link set "${LO_NAME}" up
 fi
@@ -118,7 +133,7 @@ debug bgp updates
 debug bgp keepalives
 debug bgp nht
 !
-vrf default
+vrf ${VRF_NAME}
  vni ${VNI}
 exit-vrf
 !
@@ -150,7 +165,20 @@ done)
   advertise-all-vni
   advertise-svi-ip
   default-originate ipv4
-  vni ${VNI}
+ exit-address-family
+exit
+!
+router bgp ${LOCAL_ASN} vrf ${VRF_NAME}
+ !
+ address-family ipv4 unicast
+  redistribute connected
+ exit-address-family
+ !
+ address-family ipv6 unicast
+  redistribute connected
+ exit-address-family
+ !
+ address-family l2vpn evpn
   advertise ipv4 unicast
   advertise ipv6 unicast
  exit-address-family
@@ -209,5 +237,5 @@ echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh -c 'show evpn vni'"
 echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh -c 'show evpn mac vni ${VNI}'"
 echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh"
 echo ""
-echo "Bridge ${BRIDGE_IF} is ready (default VRF)."
+echo "Bridge ${BRIDGE_IF} is ready (VRF ${VRF_NAME})."
 echo "Attach VMs or veths to it for L2 connectivity over VNI ${VNI}."
