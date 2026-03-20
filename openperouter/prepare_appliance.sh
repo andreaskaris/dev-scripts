@@ -138,7 +138,6 @@ if [[ -d "${SCRIPTDIR}/quadlets" ]]; then
         "${SCRIPTDIR}/quadlets/patch-installer-config.sh:/usr/local/bin/patch-installer-config.sh:493"
         "${SCRIPTDIR}/openpeconfig/node-config.yaml:/var/lib/openperouter/node-config.yaml:420"
         "${SCRIPTDIR}/openpeconfig/openpe_config.yaml:/var/lib/openperouter/configs/openpe_config.yaml:420"
-        "${SCRIPTDIR}/openpeconfig/default_bridge:/etc/ovnk/default_bridge:420"
         "unit-file:openperouter-node-index.service:${SCRIPTDIR}/quadlets/openperouter-node-index.service"
         "unit-file:openperouter-raw-config.service:${SCRIPTDIR}/quadlets/openperouter-raw-config.service"
         "unit-file:enable-virtual-interfaces.service:${SCRIPTDIR}/quadlets/enable-virtual-interfaces.service"

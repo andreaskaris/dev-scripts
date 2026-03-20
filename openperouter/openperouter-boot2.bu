@@ -16,11 +16,6 @@ storage:
       overwrite: true
       contents:
         local: openpeconfig/openpe_config.yaml
-    - path: /etc/ovnk/default_bridge
-      mode: 0644
-      overwrite: true
-      contents:
-        local: openpeconfig/default_bridge
     - path: /usr/local/bin/openperouter-node-index.sh
       mode: 0755
       overwrite: true

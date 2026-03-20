@@ -24,12 +24,6 @@ spec:
           overwrite: true
           path: /var/lib/openperouter/configs/openpe_config.yaml
         - contents:
-            compression: ""
-            source: data:,br0%0A
-          mode: 420
-          overwrite: true
-          path: /etc/ovnk/default_bridge
-        - contents:
             compression: gzip
             source: data:;base64,H4sIAAAAAAAC/3ST0W/iRhjE37+/YrpYPejJOERRHyBEShvf1VIPEBepkaoKrdnPsIrZtdZrkhb8v1c2aWJS5dWfx/Obkaf3Q1SVLkq1idjskcpySz3Ez97JtYffMnJZeti1Z4/M2V37LHUXSJ1WG0aygDQKT057hvaQJYxVnBjFz9SDNq3AFmwKdrby7Np7uLYm05vh33KXD4lK9gi5sih0wZnUOdEvy+Tua7ya3X6LpyI4jMZh6i5qQb/OZ1+Sr6vF7f1vUxHtpYtynUZdg+i9gaBvtw+rZXy/TOLv058viDbsV6cAK130BzgQoAuEVwgtpFIO5dY+QfEeIjh0UGqBy5tI8T4yVZ7jCPn0iE+HwmnjEVzVn3DEuvIIVYQwG+GILUuFcITjEd5VTDVRD39I7ZFZ99Jm26S32LCHNEgW+6uWgsvyvx6SxVQIaiT9PvR0NIG+nnZiTaA/f8ZgMIGyBLypgv5Z2EGTNMOfCE0nWrKoBf6aNDiGACB1LB8JyDQBvN5aiIZZm02Lfd7JB+joS+95V3gEB11HwaGDWw+Gw6EgoMyZC1ySsoaJTmT/fEx2QomXy/lyjJk998tsZRSseY8ns+a3O/fHC1spcPPjZfPlZ+0xokzThwOg2fwuXiWzu/hh2iXs9X4a1oLoBPedfdvT6wyaeoLDm7ZGv13SO8pkgW7qgSDaPSrtEBYQQV9pZ+SOm2o6E6jFQNBaetz874Dr63j+hV4xxucQlNvN77znfAzFabWh5uV/AwAA//9J7JzaDwQAAA==
           mode: 493
