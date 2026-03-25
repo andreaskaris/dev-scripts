@@ -8,13 +8,24 @@ set -euo pipefail
 
 CONTAINER_NAME="externalfrr"
 VNI=100
-VRF_NAME="red"
+VRF_NAME="${VRF_NAME:-red}"
+DNS_PID_FILE="/run/dnsmasq-vrf-${VRF_NAME}.pid"
 VXLAN_IF="vni${VNI}"
 BRIDGE_IF="br${VNI}"
 VTEP_LO="lo-vtep"
 LO_NAME="lo-extra"
 
 echo "Cleaning up external FRR..."
+
+# Stop DNS forwarder
+if [ -f "${DNS_PID_FILE}" ] && sudo kill -0 "$(cat "${DNS_PID_FILE}")" 2>/dev/null; then
+    echo "  Stopping DNS forwarder (PID $(cat "${DNS_PID_FILE}"))..."
+    sudo kill "$(cat "${DNS_PID_FILE}")"
+    sudo rm -f "${DNS_PID_FILE}"
+else
+    echo "  DNS forwarder not running, skipping"
+    sudo rm -f "${DNS_PID_FILE}"
+fi
 
 # Stop and remove FRR container
 if sudo podman ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
@@ -68,6 +79,7 @@ fi
 # Remove VRF
 if ip link show "${VRF_NAME}" &>/dev/null; then
     echo "  Removing VRF ${VRF_NAME}..."
+    sudo firewall-cmd --zone=trusted --remove-interface="${VRF_NAME}" 2>/dev/null || true
     sudo ip link set "${VRF_NAME}" down
     sudo ip link del "${VRF_NAME}"
 else

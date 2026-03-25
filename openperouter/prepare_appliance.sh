@@ -26,6 +26,7 @@ fi
 #   Remaining args are either:
 #     "source:dest:mode"       - file to embed
 #     "unit-file:name:source"  - systemd unit from a file
+#     "mask-unit:name"         - systemd unit to mask
 embed_files_in_appliance_iso() {
     local iso_file="$1"
     shift
@@ -43,7 +44,11 @@ embed_files_in_appliance_iso() {
     for entry in "$@"; do
         local prefix="${entry%%:*}"
 
-        if [[ "${prefix}" == "unit-file" ]]; then
+        if [[ "${prefix}" == "mask-unit" ]]; then
+            local unit_name="${entry#mask-unit:}"
+            units_json=$(echo "${units_json}" | jq --arg name "${unit_name}" \
+                '. + [{"name": $name, "mask": true, "enabled": false}]')
+        elif [[ "${prefix}" == "unit-file" ]]; then
             local rest="${entry#unit-file:}"
             local unit_name="${rest%%:*}"
             local unit_src="${rest#*:}"
@@ -142,6 +147,19 @@ if [[ -d "${SCRIPTDIR}/quadlets" ]]; then
         "unit-file:openperouter-raw-config.service:${SCRIPTDIR}/quadlets/openperouter-raw-config.service"
         "unit-file:enable-virtual-interfaces.service:${SCRIPTDIR}/quadlets/enable-virtual-interfaces.service"
     )
+fi
+
+# --- Generate DNS config files from dns.bu inline content ---
+if [[ -f "${SCRIPTDIR}/dns/dns.bu" ]]; then
+    dns_tmpdir=$(mktemp -d)
+    # Extract inline file contents from the butane source into temp files
+    while IFS=$'\t' read -r fpath contents; do
+        local_file="${dns_tmpdir}/$(basename "${fpath}")"
+        printf '%b\n' "${contents}" > "${local_file}"
+        embed_args+=("${local_file}:${fpath}:420")
+    done < <(yq -r '.storage.files[] | [.path, .contents.inline] | @tsv' "${SCRIPTDIR}/dns/dns.bu")
+    # Mask the on-prem-resolv-prepender service as dns.bu does
+    embed_args+=("mask-unit:on-prem-resolv-prepender.service")
 fi
 
 if [[ ${#embed_args[@]} -gt 0 ]]; then

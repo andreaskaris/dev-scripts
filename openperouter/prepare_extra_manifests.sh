@@ -29,6 +29,14 @@ if [[ -f "${SCRIPTDIR}/openperouter-boot2.bu" ]]; then
     echo "  -> ${OUTPUT_DIR}/99-master-openperouter.yaml"
 fi
 
+# Generate DNS hack MachineConfig
+if [[ -f "${SCRIPTDIR}/dns/dns.bu" ]]; then
+    echo "Generating 02-master-dns-hack.yaml from dns/dns.bu"
+    butane --files-dir="${SCRIPTDIR}" "${SCRIPTDIR}/dns/dns.bu" \
+        -o "${OUTPUT_DIR}/02-master-dns-hack.yaml"
+    echo "  -> ${OUTPUT_DIR}/02-master-dns-hack.yaml"
+fi
+
 # Generate registry MachineConfig from registry sources
 if [[ -f "${SCRIPTDIR}/registry-appliance.bu" ]]; then
     echo "Generating 01-master-registry.yaml from registry-appliance.bu"

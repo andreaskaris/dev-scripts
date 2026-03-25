@@ -38,6 +38,12 @@ VXLAN_PORT=4789
 VTEP_LO="lo-vtep"
 LO_NAME="lo-extra"
 LO_IP="${LO_IP:-10.100.0.1/32}"
+DNS_LISTEN_IP="${DNS_LISTEN_IP:-10.100.0.1}"
+CLUSTER_NAME="${CLUSTER_NAME:-sno-lab}"
+BASE_DOMAIN="${BASE_DOMAIN:-example.com}"
+CLUSTER_DOMAIN="${CLUSTER_NAME}.${BASE_DOMAIN}"
+API_VIP="${API_VIP:-192.168.110.10}"
+INGRESS_VIP="${INGRESS_VIP:-192.168.110.11}"
 CONTAINER_NAME="externalfrr"
 FRR_IMAGE="${FRR_IMAGE:-quay.io/frrouting/frr:10.5.1}"
 FRR_CONF_DIR="${SCRIPTDIR}/config"
@@ -75,6 +81,8 @@ if ip link show "${VRF_NAME}" &>/dev/null; then
 else
     sudo ip link add "${VRF_NAME}" type vrf table "${VRF_TABLE}"
     sudo ip link set "${VRF_NAME}" up
+    # Allow all traffic in the VRF (DNS, etc.) by placing it in the trusted firewall zone
+    sudo firewall-cmd --zone=trusted --add-interface="${VRF_NAME}" 2>/dev/null || true
 fi
 
 # --- VXLAN interface ---
@@ -228,6 +236,44 @@ sudo podman run -d \
     -v "${FRR_CONF_DIR}/daemons:/etc/frr/daemons:Z" \
     -v "${FRR_CONF_DIR}/vtysh.conf:/etc/frr/vtysh.conf:Z" \
     "${FRR_IMAGE}"
+
+# --- DNS server in VRF red ---
+DNS_PID_FILE="/run/dnsmasq-vrf-${VRF_NAME}.pid"
+DNS_CONF="${FRR_CONF_DIR}/dnsmasq.conf"
+
+if [ -n "${API_VIP}" ] && [ -n "${INGRESS_VIP}" ]; then
+    echo "Setting up DNS server in VRF ${VRF_NAME} on ${LO_NAME} (${DNS_LISTEN_IP})..."
+
+    # Kill any existing dnsmasq listening on DNS_LISTEN_IP (stale or current)
+    for pid in $(pgrep -f "dnsmasq.*${DNS_LISTEN_IP}" 2>/dev/null); do
+        echo "  Killing existing dnsmasq (PID ${pid})..."
+        sudo kill "${pid}" 2>/dev/null || true
+    done
+    sudo rm -f "${DNS_PID_FILE}"
+    sleep 1
+
+    cat > "${DNS_CONF}" <<DNSEOF
+address=/api.${CLUSTER_DOMAIN}/${API_VIP}
+address=/api-int.${CLUSTER_DOMAIN}/${API_VIP}
+address=/.apps.${CLUSTER_DOMAIN}/${INGRESS_VIP}
+DNSEOF
+
+    echo "  DNS config: api.${CLUSTER_DOMAIN} -> ${API_VIP}"
+    echo "  DNS config: *.apps.${CLUSTER_DOMAIN} -> ${INGRESS_VIP}"
+
+    sudo ip vrf exec "${VRF_NAME}" dnsmasq \
+        --pid-file="${DNS_PID_FILE}" \
+        --conf-file="${DNS_CONF}" \
+        --no-dhcp-interface="${LO_NAME}" \
+        --listen-address="${DNS_LISTEN_IP}" \
+        --bind-interfaces \
+        --no-resolv \
+        --no-hosts
+
+    echo "DNS server running at ${DNS_LISTEN_IP} in VRF ${VRF_NAME}."
+else
+    echo "Skipping DNS server (set API_VIP and INGRESS_VIP to enable)."
+fi
 
 echo ""
 echo "FRR is running. Useful commands:"

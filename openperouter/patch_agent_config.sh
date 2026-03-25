@@ -34,6 +34,10 @@ INSTALL_CONFIG="${WORKING_DIR}/ocp/${CLUSTER_NAME}/install-config.yaml"
 
 NIC_NAME="enp2s0"
 PROV_NIC_NAME="enp1s0"
+EXTRA_NIC_NAME="enp3s0"
+
+# DNS server: the host's baremetal IP where dnsmasq runs with cluster records
+DNS_SERVER="${DNS_SERVER:-192.168.111.1}"
 
 # NTP server reachable during agent discovery phase (host's baremetal IP)
 NTP_SERVER="${NTP_SERVER:-192.168.111.1}"
@@ -107,6 +111,13 @@ for i, host in enumerate(cfg['hosts']):
             },
             {
                 'name': '${PROV_NIC_NAME}',
+                'type': 'ethernet',
+                'state': 'up',
+                'ipv4': {'enabled': False},
+                'ipv6': {'enabled': False},
+            },
+            {
+                'name': '${EXTRA_NIC_NAME}',
                 'type': 'ethernet',
                 'state': 'up',
                 'ipv4': {'enabled': False},

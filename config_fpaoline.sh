@@ -33,12 +33,10 @@ export NETWORK_TYPE="OVNKubernetes"
 export OVN_LOCAL_GATEWAY_MODE=true
 #export EXTERNAL_SUBNET_V4="10.10.0.0/24"
 
-# Extra network for external connectivity (adds a third NIC to the VM)
+# Extra NIC for external connectivity (no IP assigned inside the guest).
+# The subnet is required by libvirt to create the virtual network.
 export EXTRA_NETWORK_NAMES="external"
 export EXTERNAL_NETWORK_SUBNET_V4='192.168.150.0/24'
-
-# Allow the bridge subnet to reach the host's chronyd for NTP sync
-export CHRONY_EXTRA_ALLOW_SUBNETS="192.168.110.0/24"
 
 # --- VM RESOURCES ---
 # Explicit values matching the COMPACT_IPV4 preset to document intent
@@ -63,7 +61,7 @@ export OPENPE_BRIDGE_IP="192.168.110.2"
 # --- OPENPEROUTER ---
 # Pre-load OpenPERouter container images into the appliance disk
 #export APPLIANCE_ADDITIONAL_IMAGES="quay.io/openperouter/router:main"
-export APPLIANCE_ADDITIONAL_IMAGES="quay.io/fpaoline/router:dev3,quay.io/mavazque/ign-converter:latest"
+export APPLIANCE_ADDITIONAL_IMAGES="quay.io/fpaoline/router:dev4,quay.io/mavazque/ign-converter:latest"
 # OpenPERouter quadlets and configs are embedded directly in the appliance
 # ISO ignition, so no extra MachineConfig manifests are needed.
 # ENABLE_VIRTUAL_INTERFACES is injected via a systemd unit in the ISO.
