@@ -727,8 +727,8 @@ case "${AGENT_E2E_TEST_BOOT_MODE}" in
     # Embed OpenPERouter quadlets, configs, and registry mirrors into the
     # appliance ISO ignition (first-boot customization).
     appliance_iso="${OCP_DIR}/appliance.iso"
-    if [[ -x "${SCRIPTDIR}/openperouter/prepare_appliance.sh" ]]; then
-        "${SCRIPTDIR}/openperouter/prepare_appliance.sh" "${appliance_iso}" "${OCP_DIR}"
+    if [[ -x "${SCRIPTDIR}/deploy/appliance/patch_appliance.sh" ]]; then
+        "${SCRIPTDIR}/deploy/appliance/patch_appliance.sh" "${appliance_iso}" "${OCP_DIR}"
     fi
 
     # Create the config ISO
