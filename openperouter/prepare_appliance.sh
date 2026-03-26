@@ -5,7 +5,7 @@
 #
 # Usage: prepare_appliance.sh <appliance_iso> <ocp_dir>
 #
-# Requires: coreos-installer, jq, yq, base64
+# Requires: coreos-installer, jq, yq, butane
 
 set -euo pipefail
 
@@ -19,82 +19,16 @@ if [[ ! -f "${appliance_iso}" ]]; then
     exit 1
 fi
 
-# --- embed_files_in_appliance_iso ---
-# Extracts the existing ignition from the ISO, merges additional files
-# and systemd units, then re-embeds the modified ignition.
-# Args: $1 = ISO path
-#   Remaining args are either:
-#     "source:dest:mode"       - file to embed
-#     "unit-file:name:source"  - systemd unit from a file
-#     "mask-unit:name"         - systemd unit to mask
-embed_files_in_appliance_iso() {
-    local iso_file="$1"
-    shift
+tmpdir=$(mktemp -d)
+trap 'rm -rf "${tmpdir}"' EXIT
 
-    local tmpdir
-    tmpdir=$(mktemp -d)
-    local orig_ign="${tmpdir}/original.ign"
-    local merged_ign="${tmpdir}/merged.ign"
-
-    sudo coreos-installer iso ignition show "${iso_file}" > "${orig_ign}" 2>/dev/null || echo '{"ignition":{"version":"3.4.0"}}' > "${orig_ign}"
-
-    local files_json="[]"
-    local units_json="[]"
-
-    for entry in "$@"; do
-        local prefix="${entry%%:*}"
-
-        if [[ "${prefix}" == "mask-unit" ]]; then
-            local unit_name="${entry#mask-unit:}"
-            units_json=$(echo "${units_json}" | jq --arg name "${unit_name}" \
-                '. + [{"name": $name, "mask": true, "enabled": false}]')
-        elif [[ "${prefix}" == "unit-file" ]]; then
-            local rest="${entry#unit-file:}"
-            local unit_name="${rest%%:*}"
-            local unit_src="${rest#*:}"
-            if [[ ! -f "${unit_src}" ]]; then
-                echo "WARNING: unit file ${unit_src} not found, skipping"
-                continue
-            fi
-            local unit_contents
-            unit_contents=$(cat "${unit_src}")
-            units_json=$(echo "${units_json}" | jq --arg name "${unit_name}" \
-                --arg contents "${unit_contents}" \
-                '. + [{"name": $name, "enabled": true, "contents": $contents}]')
-        else
-            IFS=':' read -r src dest mode <<< "${entry}"
-            if [[ ! -f "${src}" ]]; then
-                echo "WARNING: ${src} not found, skipping"
-                continue
-            fi
-            local encoded
-            encoded=$(base64 -w0 < "${src}")
-            files_json=$(echo "${files_json}" | jq --arg src "data:;base64,${encoded}" \
-                --arg path "${dest}" --argjson mode "${mode}" \
-                '. + [{"path": $path, "mode": $mode, "overwrite": true, "contents": {"source": $src}}]')
-        fi
-    done
-
-    jq --argjson new_files "${files_json}" --argjson new_units "${units_json}" '
-        .storage = (.storage // {}) |
-        .storage.files = ((.storage.files // []) + $new_files) |
-        if ($new_units | length) > 0 then
-            .systemd = (.systemd // {}) |
-            .systemd.units = ((.systemd.units // []) + $new_units)
-        else . end
-    ' "${orig_ign}" > "${merged_ign}"
-
-    sudo coreos-installer iso ignition remove "${iso_file}" 2>/dev/null || true
-    sudo coreos-installer iso ignition embed -i "${merged_ign}" "${iso_file}"
-
-    rm -rf "${tmpdir}"
-    echo "Embedded $(echo "${files_json}" | jq length) files and $(echo "${units_json}" | jq length) units into appliance ISO ignition"
-}
+staging="${tmpdir}/staging"
+mkdir -p "${staging}"
 
 # --- Generate registries.conf drop-in ---
 # Converts IDMS/ITMS yaml files from the appliance cache into a
 # registries.conf drop-in so mirror redirects work on first boot.
-registries_conf="${ocp_dir}/appliance-registries.conf"
+registries_conf="${staging}/appliance-mirrors.conf"
 cluster_resources="${ocp_dir}/cache/"*"/cluster-resources"
 {
     for yaml_file in ${cluster_resources}/idms-oc-mirror.yaml ${cluster_resources}/itms-oc-mirror.yaml; do
@@ -123,49 +57,136 @@ TOML
     done
 } > "${registries_conf}"
 
-# --- Build embed arguments ---
-embed_args=()
+# --- Build butane YAML ---
+# Instead of manually constructing ignition JSON with jq, we generate
+# a butane file and let butane handle encoding / ignition generation,
+# similar to what genisov2.sh does.
+bu="${tmpdir}/appliance.bu"
+bu_files=""
+bu_units=""
 
+# Registry mirrors
 if [[ -s "${registries_conf}" ]]; then
-    embed_args+=("${registries_conf}:/etc/containers/registries.conf.d/appliance-mirrors.conf:420")
+    bu_files+="    - path: /etc/containers/registries.conf.d/appliance-mirrors.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        local: appliance-mirrors.conf
+"
 fi
 
+# Quadlet files and configs
 if [[ -d "${SCRIPTDIR}/quadlets" ]]; then
-    embed_args+=(
-        "${SCRIPTDIR}/quadlets/controllerpod.pod:/etc/containers/systemd/controllerpod.pod:420"
-        "${SCRIPTDIR}/quadlets/controller.container:/etc/containers/systemd/controller.container:420"
-        "${SCRIPTDIR}/quadlets/routerpod.pod:/etc/containers/systemd/routerpod.pod:420"
-        "${SCRIPTDIR}/quadlets/frr.container:/etc/containers/systemd/frr.container:420"
-        "${SCRIPTDIR}/quadlets/reloader.container:/etc/containers/systemd/reloader.container:420"
-        "${SCRIPTDIR}/quadlets/frr-sockets.volume:/etc/containers/systemd/frr-sockets.volume:420"
-        "${SCRIPTDIR}/quadlets/openperouter-node-index.sh:/usr/local/bin/openperouter-node-index.sh:493"
-        "${SCRIPTDIR}/quadlets/openperouter-raw-config.sh:/usr/local/bin/openperouter-raw-config.sh:493"
-        "${SCRIPTDIR}/quadlets/patch-installer-config.sh:/usr/local/bin/patch-installer-config.sh:493"
-        "${SCRIPTDIR}/openpeconfig/node-config.yaml:/var/lib/openperouter/node-config.yaml:420"
-        "${SCRIPTDIR}/openpeconfig/openpe_config.yaml:/var/lib/openperouter/configs/openpe_config.yaml:420"
-        "unit-file:openperouter-node-index.service:${SCRIPTDIR}/quadlets/openperouter-node-index.service"
-        "unit-file:openperouter-raw-config.service:${SCRIPTDIR}/quadlets/openperouter-raw-config.service"
-        "unit-file:enable-virtual-interfaces.service:${SCRIPTDIR}/quadlets/enable-virtual-interfaces.service"
-    )
+    # Stage all source files into the butane files-dir
+    for f in controllerpod.pod controller.container routerpod.pod frr.container \
+             reloader.container frr-sockets.volume openperouter-node-index.sh \
+             openperouter-raw-config.sh patch-installer-config.sh \
+             openperouter-node-index.service openperouter-raw-config.service \
+             enable-virtual-interfaces.service; do
+        cp "${SCRIPTDIR}/quadlets/${f}" "${staging}/"
+    done
+    cp "${SCRIPTDIR}/openpeconfig/openpe_config.yaml" "${staging}/"
+
+    # Quadlet files -> /etc/containers/systemd/
+    for f in controllerpod.pod controller.container routerpod.pod frr.container \
+             reloader.container frr-sockets.volume; do
+        bu_files+="    - path: /etc/containers/systemd/${f}
+      mode: 0644
+      overwrite: true
+      contents:
+        local: ${f}
+"
+    done
+
+    # Scripts -> /usr/local/bin/ (executable)
+    for f in openperouter-node-index.sh openperouter-raw-config.sh patch-installer-config.sh; do
+        bu_files+="    - path: /usr/local/bin/${f}
+      mode: 0755
+      overwrite: true
+      contents:
+        local: ${f}
+"
+    done
+
+    # Config files -> /var/lib/openperouter/
+    bu_files+="    - path: /var/lib/openperouter/configs/openpe_config.yaml
+      mode: 0644
+      overwrite: true
+      contents:
+        local: openpe_config.yaml
+"
+
+    # Systemd units (using contents_local so butane reads from files-dir)
+    for f in openperouter-node-index.service openperouter-raw-config.service \
+             enable-virtual-interfaces.service; do
+        bu_units+="    - name: ${f}
+      enabled: true
+      contents_local: ${f}
+"
+    done
 fi
 
-# --- Generate DNS config files from dns.bu inline content ---
+# DNS config files from dns.bu
 if [[ -f "${SCRIPTDIR}/dns/dns.bu" ]]; then
-    dns_tmpdir=$(mktemp -d)
-    # Extract inline file contents from the butane source into temp files
     while IFS=$'\t' read -r fpath contents; do
-        local_file="${dns_tmpdir}/$(basename "${fpath}")"
-        printf '%b\n' "${contents}" > "${local_file}"
-        embed_args+=("${local_file}:${fpath}:420")
+        local_file="$(basename "${fpath}")"
+        printf '%b\n' "${contents}" > "${staging}/${local_file}"
+        bu_files+="    - path: ${fpath}
+      mode: 0644
+      overwrite: true
+      contents:
+        local: ${local_file}
+"
     done < <(yq -r '.storage.files[] | [.path, .contents.inline] | @tsv' "${SCRIPTDIR}/dns/dns.bu")
-    # Mask the on-prem-resolv-prepender service as dns.bu does
-    embed_args+=("mask-unit:on-prem-resolv-prepender.service")
+
+    bu_units+="    - name: on-prem-resolv-prepender.service
+      mask: true
+      enabled: false
+"
 fi
 
-if [[ ${#embed_args[@]} -gt 0 ]]; then
-    embed_files_in_appliance_iso "${appliance_iso}" "${embed_args[@]}"
-else
+# --- Assemble and compile butane ---
+if [[ -z "${bu_files}" && -z "${bu_units}" ]]; then
     echo "Nothing to embed into appliance ISO"
+else
+    {
+        echo "variant: fcos"
+        echo "version: 1.5.0"
+        if [[ -n "${bu_files}" ]]; then
+            echo "storage:"
+            echo "  files:"
+            printf '%s' "${bu_files}"
+        fi
+        if [[ -n "${bu_units}" ]]; then
+            echo "systemd:"
+            echo "  units:"
+            printf '%s' "${bu_units}"
+        fi
+    } > "${bu}"
+
+    # Compile butane -> ignition (butane handles base64 encoding, etc.)
+    butane --raw --strict -d "${staging}" "${bu}" > "${tmpdir}/additions.ign"
+
+    # Extract existing ISO ignition
+    sudo coreos-installer iso ignition show "${appliance_iso}" > "${tmpdir}/original.ign" 2>/dev/null \
+        || echo '{"ignition":{"version":"3.4.0"}}' > "${tmpdir}/original.ign"
+
+    # Merge our additions with the original ignition
+    jq -s '
+        .[0] as $orig | .[1] as $new |
+        $orig |
+        .storage = (.storage // {}) |
+        .storage.files = ((.storage.files // []) + ($new.storage.files // [])) |
+        if ($new.systemd.units // [] | length) > 0 then
+            .systemd = (.systemd // {}) |
+            .systemd.units = ((.systemd.units // []) + ($new.systemd.units // []))
+        else . end
+    ' "${tmpdir}/original.ign" "${tmpdir}/additions.ign" > "${tmpdir}/merged.ign"
+
+    # Embed merged ignition into ISO (force overwrite like genisov2.sh)
+    sudo coreos-installer iso ignition embed -f -i "${tmpdir}/merged.ign" "${appliance_iso}"
+
+    echo "Embedded ignition into appliance ISO"
 fi
 
 # --- Embed ignition hack script and service ---
