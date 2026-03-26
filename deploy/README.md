@@ -27,6 +27,8 @@ The script:
 
 Output: `deploy/appliance/appliance.iso`
 
+Base appliance-config can be found under `deploy/appliance/appliance-config.yaml.base`.
+
 ### Patch an existing ISO
 
 To patch a pre-built appliance ISO without rebuilding:
@@ -37,15 +39,11 @@ To patch a pre-built appliance ISO without rebuilding:
 
 Where `<ocp_dir>` contains `cache/*/cluster-resources` with IDMS/ITMS YAML files.
 
-### Configuration
-
-Edit `deploy/appliance/appliance-config.yaml.base` to change the OCP release version, disk size, or additional images. The pull secret and SSH key are injected at build time and never stored in the base file.
-
 ## Config Image
 
 Generate the agent config-image ISO that the appliance mounts at first boot. It bundles `install-config.yaml`, `agent-config.yaml`, and MachineConfig manifests (OpenPERouter, DNS, registry).
 
-**Requires:** the appliance to be built first — the script uses the `openshift-install` binary from `deploy/appliance/cache/`.
+**Requires:** the appliance to be built first -- the script uses the `openshift-install` binary from `deploy/appliance/cache/`.
 
 ### Prerequisites
 
@@ -73,7 +71,7 @@ The script:
 
 Compiles butane sources (`openperouter.bu`, `dns.bu`, `registry.bu`) into MachineConfig YAML manifests without building the full config-image ISO.
 
-## Dev-Scripts Environment
+## Using it locally with dev-scripts
 
 Prepare a full dev-scripts environment for an agent-based deployment with OpenPERouter bridge networking.
 
@@ -83,7 +81,43 @@ Prepare a full dev-scripts environment for an agent-based deployment with OpenPE
 
 Run from the repo root. The script:
 
-1. Cleans any previous environment (`make clean` + `host_cleanup.sh`)
+1. Cleans any previous environment (`clean.sh`)
 2. Configures the host and prepares the agent release (`02_configure_host.sh`, `agent/03..05`)
 3. Patches agent-config for OpenPERouter bridge networking (`openperouter/patch_agent_config.sh`)
 4. Generates MachineConfig manifests into `$WORKING_DIR/ocp/$CLUSTER_NAME/openshift/`
+5. Starts the external FRR instance for EVPN peering (`externalfrr/run_frr.sh`)
+6. Creates the cluster (`agent/06_agent_create_cluster.sh`)
+
+### Cleanup
+
+```bash
+./deploy/devscripts/clean.sh
+```
+
+Tears down the external FRR container and networking, then runs `make clean` and `host_cleanup.sh`. Errors are ignored so cleanup proceeds as far as possible.
+
+## Interacting with the cluster
+
+Since the VXLAN tunnel terminates in the `red` VRF on the hypervisor, the cluster API is not reachable from the default network namespace. This means `agent/06_agent_create_cluster.sh` will fail when it tries to wait for the installation to complete. This is expected -- use the commands below to monitor progress and interact with the cluster manually.
+
+All cluster traffic must be prefixed with `sudo ip vrf exec red`.
+
+### SSH into nodes
+
+```bash
+sudo ip vrf exec red ssh -i ~/.ssh/id_rsa core@192.168.110.3
+```
+
+### kubectl commands
+
+```bash
+sudo ip vrf exec red /usr/local/bin/kubectl \
+    --kubeconfig=ocp/sno-lab/auth/kubeconfig get nodes
+```
+
+### Monitor installation progress
+
+```bash
+sudo ip vrf exec red ./ocp/sno-lab/openshift-install agent wait-for install-complete \
+    --dir ocp/sno-lab/configimage
+```

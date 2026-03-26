@@ -51,7 +51,13 @@ echo "==> Generating MachineConfig manifests into ${MANIFESTS_DIR}..."
 ./deploy/config-image/generate_machineconfigs.sh "${MANIFESTS_DIR}"
 
 # ============================================================
-# Step 5: Create cluster
+# Step 5: Start external FRR for EVPN peering
+# ============================================================
+echo "==> Starting external FRR..."
+"${SCRIPTDIR}/externalfrr/run_frr.sh"
+
+# ============================================================
+# Step 6: Create cluster
 # ============================================================
 echo "==> Creating cluster..."
 agent/06_agent_create_cluster.sh

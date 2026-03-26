@@ -11,5 +11,6 @@ ROOTDIR="$(cd "${SCRIPTDIR}/../.." && pwd)"
 cd "${ROOTDIR}"
 
 echo "==> Cleaning previous environment..."
+"${SCRIPTDIR}/externalfrr/cleanup.sh" || true
 make clean || true
 ./host_cleanup.sh || true
