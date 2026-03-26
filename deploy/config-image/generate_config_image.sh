@@ -12,18 +12,22 @@
 #
 # The ISO is written to <config_image_dir>/agentconfig.noarch.iso
 #
-# Requires: butane, openshift-install (in PATH)
+# Requires: butane
 
 set -euo pipefail
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APPLIANCE_CACHE="${SCRIPTDIR}/../appliance/cache"
 
 config_image_dir="$(realpath "${1:-${SCRIPTDIR}/configimage}")"
 
-if ! command -v openshift-install &>/dev/null; then
-    echo "ERROR: openshift-install not found in PATH"
+# Use openshift-install from the appliance cache
+openshift_install=$(find "${APPLIANCE_CACHE}" -name 'openshift-install' -type f 2>/dev/null | head -1)
+if [[ -z "${openshift_install}" || ! -x "${openshift_install}" ]]; then
+    echo "ERROR: openshift-install not found in ${APPLIANCE_CACHE}. Build the appliance first."
     exit 1
 fi
+echo "Using: ${openshift_install}"
 
 # ============================================================
 # Prepare config-image work directory
@@ -51,7 +55,7 @@ extra_manifests_dir="${config_image_dir}/openshift"
 # ============================================================
 echo "==> Creating config-image ISO..."
 
-openshift-install --log-level=debug --dir="${config_image_dir}" agent create config-image
+"${openshift_install}" --log-level=debug --dir="${config_image_dir}" agent create config-image
 
 # Copy auth files alongside the ISO for wait-for access
 if [[ -d "${config_image_dir}/auth" ]]; then
