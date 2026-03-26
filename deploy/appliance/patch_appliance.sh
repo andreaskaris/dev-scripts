@@ -1,47 +1,30 @@
 #!/bin/bash
-# generate_appliance.sh - Build an OpenShift appliance ISO and embed
+# patch_appliance.sh - Patch an existing appliance ISO by embedding
 # OpenPERouter quadlets, configs, registry mirrors, DNS overrides,
 # and the ignition hack agent into it.
 #
-# Usage: generate_appliance.sh <appliance_config_dir> <appliance_iso> <ocp_dir>
+# Usage: patch_appliance.sh <appliance_iso> <ocp_dir>
 #
-#   appliance_config_dir  Directory containing appliance-config.yaml and
-#                         install-config.yaml (passed to openshift-appliance)
-#   appliance_iso         Path to the appliance ISO to patch (output of the build)
+#   appliance_iso         Path to the appliance ISO to patch
 #   ocp_dir               OCP working directory containing cache/*/cluster-resources
 #
-# Requires: coreos-installer, jq, yq, butane, podman
+# Requires: coreos-installer, jq, yq, butane
 
 set -euo pipefail
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EXTRASDIR="$(cd "${SCRIPTDIR}/../extras" && pwd)"
 
-APPLIANCE_IMAGE="${APPLIANCE_IMAGE:-quay.io/edge-infrastructure/openshift-appliance:latest}"
-
-appliance_config_dir="$1"
-appliance_iso="$2"
-ocp_dir="$3"
-
-# ============================================================
-# Step 1: Build the appliance live ISO
-# ============================================================
-echo "==> Building appliance live ISO from ${appliance_config_dir}..."
-
-asset_dir="$(realpath "${appliance_config_dir}")"
-
-sudo podman run -it --rm --pull newer --privileged --net=host \
-    -v "${asset_dir}:/assets:Z" \
-    "${APPLIANCE_IMAGE}" build live-iso --log-level=debug
+appliance_iso="$1"
+ocp_dir="$2"
 
 if [[ ! -f "${appliance_iso}" ]]; then
-    echo "ERROR: Appliance ISO not found after build: ${appliance_iso}"
+    echo "ERROR: Appliance ISO not found: ${appliance_iso}"
     exit 1
 fi
 
-echo "==> Appliance ISO built: ${appliance_iso}"
-
 # ============================================================
-# Step 2: Embed OpenPERouter content into the ISO ignition
+# Step 1: Embed OpenPERouter content into the ISO ignition
 # ============================================================
 echo "==> Patching appliance ISO with OpenPERouter content..."
 
@@ -99,16 +82,16 @@ if [[ -s "${registries_conf}" ]]; then
 fi
 
 # Quadlet files and configs
-if [[ -d "${SCRIPTDIR}/quadlets" ]]; then
+if [[ -d "${EXTRASDIR}/quadlets" ]]; then
     # Stage all source files into the butane files-dir
     for f in controllerpod.pod controller.container routerpod.pod frr.container \
              reloader.container frr-sockets.volume openperouter-node-index.sh \
              openperouter-raw-config.sh patch-installer-config.sh \
              openperouter-node-index.service openperouter-raw-config.service \
              enable-virtual-interfaces.service; do
-        cp "${SCRIPTDIR}/quadlets/${f}" "${staging}/"
+        cp "${EXTRASDIR}/quadlets/${f}" "${staging}/"
     done
-    cp "${SCRIPTDIR}/config/openpe_config.yaml" "${staging}/"
+    cp "${EXTRASDIR}/config/openpe_config.yaml" "${staging}/"
 
     # Quadlet files -> /etc/containers/systemd/
     for f in controllerpod.pod controller.container routerpod.pod frr.container \
@@ -150,7 +133,7 @@ if [[ -d "${SCRIPTDIR}/quadlets" ]]; then
 fi
 
 # DNS config files from dns.bu
-if [[ -f "${SCRIPTDIR}/dns/dns.bu" ]]; then
+if [[ -f "${EXTRASDIR}/dns/dns.bu" ]]; then
     while IFS=$'\t' read -r fpath contents; do
         local_file="$(basename "${fpath}")"
         printf '%b\n' "${contents}" > "${staging}/${local_file}"
@@ -160,7 +143,7 @@ if [[ -f "${SCRIPTDIR}/dns/dns.bu" ]]; then
       contents:
         local: ${local_file}
 "
-    done < <(yq -r '.storage.files[] | [.path, .contents.inline] | @tsv' "${SCRIPTDIR}/dns/dns.bu")
+    done < <(yq -r '.storage.files[] | [.path, .contents.inline] | @tsv' "${EXTRASDIR}/dns/dns.bu")
 
     bu_units+="    - name: on-prem-resolv-prepender.service
       mask: true
@@ -213,7 +196,7 @@ else
 fi
 
 # ============================================================
-# Step 3: Embed ignition hack agent
+# Step 2: Embed ignition hack agent
 # ============================================================
 echo "==> Embedding ignition hack agent..."
 
@@ -430,4 +413,4 @@ sudo coreos-installer iso ignition embed -i "$MODIFIED_IGN" "$appliance_iso"
 
 hack_cleanup
 
-echo "==> Done! Appliance ISO ready: ${appliance_iso}"
+echo "==> Done! Appliance ISO patched: ${appliance_iso}"
