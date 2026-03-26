@@ -12,12 +12,6 @@ spec:
     storage:
       files:
         - contents:
-            compression: ""
-            source: data:,nodeIndex%3A%201%0AlogLevel%3A%20debug%0A
-          mode: 420
-          overwrite: true
-          path: /var/lib/openperouter/node-config.yaml
-        - contents:
             compression: gzip
             source: data:;base64,H4sIAAAAAAAC/1yPQXODIBSE7/6KN7lLgBqbcOw/wfBqmCFP5kFs/PcdUVMbbux+C7vhYySfTAVQw8jfBhhdBQAwkjegpFwuz2ApDpwNNJ/nSxX0LjWDWq3gvyfeUrMWdG8z/tjJx5KfTw0HddFCtWehlBTqqJtDsW5DynebMvKG5imigeDp8aw79q7H1SjSV1E2FoDsHQ10LKsHOeRgp7WzTWSgbU6qKSyOkbbUmDFeveMyXrQnIYU86oUjf92VRoo6LbMJfX/rBt65ry/0q451jjElA39rlVDVbwAAAP//DZyBRYMBAAA=
           mode: 420

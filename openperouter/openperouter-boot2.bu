@@ -6,11 +6,6 @@ metadata:
     machineconfiguration.openshift.io/role: master
 storage:
   files:
-    - path: /var/lib/openperouter/node-config.yaml
-      mode: 0644
-      overwrite: true
-      contents:
-        local: openpeconfig/node-config.yaml
     - path: /var/lib/openperouter/configs/openpe_config.yaml
       mode: 0644
       overwrite: true
