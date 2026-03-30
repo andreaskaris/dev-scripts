@@ -96,6 +96,7 @@ else
         dstport "${VXLAN_PORT}" \
         nolearning
     sudo ip link set "${VXLAN_IF}" addrgenmode none
+    sudo ip link set "${VXLAN_IF}" mtu 1450
     sudo ip link set "${VXLAN_IF}" up
 fi
 
@@ -106,6 +107,7 @@ if ip link show "${BRIDGE_IF}" &>/dev/null; then
 else
     sudo ip link add "${BRIDGE_IF}" type bridge
     sudo ip link set "${BRIDGE_IF}" master "${VRF_NAME}"
+    sudo ip link set "${BRIDGE_IF}" mtu 1450
     sudo ip link set "${BRIDGE_IF}" up
     sudo ip link set "${VXLAN_IF}" master "${BRIDGE_IF}"
     # Enable neighbor suppression on the VXLAN interface
