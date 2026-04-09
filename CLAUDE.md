@@ -467,6 +467,8 @@ df -h ${WORKING_DIR}
 
 ## Active Technologies
 - Bash (shell scripts), YAML (config files) + dev-scripts (consumed as-is), libvirt, (001-sno-agent-bridge-config)
+- Bash (POSIX-compatible shell scripts), Butane YAML (OpenShift 4.20.0 variant) + butane (MachineConfig compiler), podman (container runtime on nodes), FRR container image (`quay.io/fpaoline/router:dev4`) (002-openpe-rawconfig-deploy)
+- Filesystem-based (MachineConfig embeds files into CoreOS nodes at `/usr/local/bin/`, `/etc/`, `/var/lib/openperouter/`) (002-openpe-rawconfig-deploy)
 
 ## Recent Changes
 - 001-sno-agent-bridge-config: Added Bash (shell scripts), YAML (config files) + dev-scripts (consumed as-is), libvirt,

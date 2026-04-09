@@ -81,20 +81,22 @@ if [[ -s "${registries_conf}" ]]; then
 "
 fi
 
-# Quadlet files and configs
+# Quadlet files and rawconfig assets
 if [[ -d "${EXTRASDIR}/quadlets" ]]; then
-    # Stage all source files into the butane files-dir
-    # Quadlet files
+    # Stage quadlet files
     for f in controllerpod.pod controller.container routerpod.pod frr.container \
              reloader.container frr-sockets.volume; do
         cp "${EXTRASDIR}/quadlets/${f}" "${staging}/"
     done
-    # OpenPE API mode scripts and config
-    for f in openperouter-node-index.sh openperouter-raw-config.sh \
-             patch-installer-config.sh; do
-        cp "${EXTRASDIR}/openpeapi/${f}" "${staging}/"
+    # Stage rawconfig scripts
+    for f in common.sh setup-underlay.sh setup-network.sh generate-config.sh; do
+        cp "${EXTRASDIR}/rawconfig/${f}" "${staging}/"
     done
-    cp "${EXTRASDIR}/openpeapi/openpe_config.yaml" "${staging}/"
+    # Stage rawconfig template and env
+    cp "${EXTRASDIR}/rawconfig/openpe_evpn.yaml.template" "${staging}/"
+    cp "${EXTRASDIR}/rawconfig/vpn-setup.env" "${staging}/"
+    # Stage shared installer patching script
+    cp "${EXTRASDIR}/openpeapi/patch-installer-config.sh" "${staging}/"
 
     # Quadlet files -> /etc/containers/systemd/
     for f in controllerpod.pod controller.container routerpod.pod frr.container \
@@ -107,8 +109,9 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
 "
     done
 
-    # Scripts -> /usr/local/bin/ (executable)
-    for f in openperouter-node-index.sh openperouter-raw-config.sh patch-installer-config.sh; do
+    # Rawconfig scripts -> /usr/local/bin/ (executable)
+    for f in common.sh setup-underlay.sh setup-network.sh generate-config.sh \
+             patch-installer-config.sh; do
         bu_files+="    - path: /usr/local/bin/${f}
       mode: 0755
       overwrite: true
@@ -117,22 +120,87 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
 "
     done
 
-    # Config files -> /var/lib/openperouter/
-    bu_files+="    - path: /var/lib/openperouter/configs/openpe_config.yaml
+    # Rawconfig template -> /etc/openperouter/templates/
+    bu_files+="    - path: /etc/openperouter/templates/openpe_evpn.yaml.template
       mode: 0644
       overwrite: true
       contents:
-        local: openpe_config.yaml
+        local: openpe_evpn.yaml.template
 "
 
-    # Systemd units (using contents_local so butane reads from files-dir)
-    for f in openperouter-node-index.service openperouter-raw-config.service \
-             enable-virtual-interfaces.service; do
-        bu_units+="    - name: ${f}
-      enabled: true
-      contents_local: ${f}
+    # Rawconfig env -> /etc/openperouter/
+    bu_files+="    - path: /etc/openperouter/vpn-setup.env
+      mode: 0644
+      overwrite: true
+      contents:
+        local: vpn-setup.env
 "
-    done
+
+    # Systemd units for rawconfig services
+    bu_units+="    - name: setup-underlay.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=OpenPERouter Underlay Setup
+        After=network-online.target routerpod-pod.service frr.service
+        Requires=routerpod-pod.service
+        Wants=network-online.target
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        EnvironmentFile=-/etc/openperouter/vpn-setup.env
+        ExecStart=/usr/local/bin/setup-underlay.sh
+        TimeoutStartSec=180
+        [Install]
+        WantedBy=multi-user.target
+"
+    bu_units+="    - name: setup-network.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=OpenPERouter Network Infrastructure Setup
+        After=setup-underlay.service
+        Requires=setup-underlay.service
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        EnvironmentFile=-/etc/openperouter/vpn-setup.env
+        ExecStart=/usr/local/bin/setup-network.sh
+        TimeoutStartSec=120
+        [Install]
+        WantedBy=multi-user.target
+"
+    bu_units+="    - name: generate-config.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=OpenPERouter Configuration Generator
+        After=setup-underlay.service
+        Requires=setup-underlay.service
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        EnvironmentFile=-/etc/openperouter/vpn-setup.env
+        ExecStart=/usr/local/bin/generate-config.sh
+        TimeoutStartSec=60
+        [Install]
+        WantedBy=multi-user.target
+"
+    bu_units+="    - name: enable-virtual-interfaces.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Patch Assisted Service installer config for openperouter
+        Before=assisted-service-pod.service
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/patch-installer-config.sh
+        Restart=on-failure
+        RestartSec=2
+        RemainAfterExit=yes
+        [Install]
+        WantedBy=assisted-service-pod.service
+"
 fi
 
 # DNS config files from dns.bu

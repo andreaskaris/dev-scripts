@@ -1,0 +1,100 @@
+# OpenPERouter Static Configuration Template
+# This template is filled by setup-vpn.sh with node-specific values
+#
+# Placeholders:
+#   {{NODE_NAME}}      - Node hostname for FRR configuration
+#   {{VTEP_IP}}        - VTEP IP derived from br0 (10.0.0.X format)
+#   {{UNDERLAY_NIC}}   - Physical NIC for underlay
+#   {{TOR_IP}}         - TOR switch IP address
+#   {{TOR_AS}}         - TOR switch AS number
+#   {{LOCAL_AS}}       - Local BGP AS number
+#   {{VRF_NAME}}       - VRF name
+#   {{L3_VNI}}         - L3VPN VXLAN VNI
+#   {{L2_VNI}}         - L2VPN VXLAN VNI
+#   {{VXLAN_PORT}}     - VXLAN UDP port
+#   {{L2_GATEWAY_IP}}  - L2VPN gateway IP
+
+underlays:
+  - asn: {{LOCAL_AS}}
+    evpn:
+      vtepcidr: {{VTEP_IP}}/24
+    nics:
+      - {{UNDERLAY_NIC}}
+    neighbors:
+      - asn: {{TOR_AS}}
+        address: {{TOR_IP}}
+
+l3vnis:
+  - vrf: {{VRF_NAME}}
+    vni: {{L3_VNI}}
+    vxlanport: {{VXLAN_PORT}}
+
+l2vnis:
+  - vni: {{L2_VNI}}
+    vrf: {{VRF_NAME}}
+    vxlanport: {{VXLAN_PORT}}
+    l2gatewayips:
+      - "{{L2_GATEWAY_IP}}"
+    hostmaster:
+      type: linux-bridge
+      linuxBridge:
+        name: br0
+
+rawfrrconfigs:
+  - priority: 100
+    rawConfig: |
+      ! OpenPERouter FRR EVPN Configuration
+      ! Generated from template with node-specific values
+
+      frr version 8.0
+      frr defaults traditional
+      hostname {{NODE_NAME}}
+      log file /etc/frr/frr.log informational
+
+      ! Router ID derived from VTEP IP
+      router bgp {{LOCAL_AS}}
+       bgp router-id {{VTEP_IP}}
+       no bgp ebgp-requires-policy
+       no bgp network import-check
+       no bgp default ipv4-unicast
+
+       ! TOR switch neighbor (underlay)
+       neighbor {{TOR_IP}} remote-as {{TOR_AS}}
+
+       ! IPv4 unicast address family (underlay)
+       address-family ipv4 unicast
+        neighbor {{TOR_IP}} activate
+        network {{VTEP_IP}}/32
+       exit-address-family
+
+       ! L2VPN EVPN address family (overlay)
+       address-family l2vpn evpn
+        neighbor {{TOR_IP}} activate
+        advertise-all-vni
+        advertise-svi-ip
+       exit-address-family
+      exit
+
+      ! L3VNI VRF configuration
+      vrf {{VRF_NAME}}
+       vni {{L3_VNI}}
+      exit-vrf
+
+      ! L3VNI BGP instance
+      router bgp {{LOCAL_AS}} vrf {{VRF_NAME}}
+       address-family ipv4 unicast
+        redistribute connected
+       exit-address-family
+
+       address-family l2vpn evpn
+        advertise ipv4 unicast
+       exit-address-family
+      exit
+
+      ! L2VNI bridge interface (where gateway IP is assigned)
+      interface br-pe-{{L2_VNI}}
+       ip address {{L2_GATEWAY_IP}}
+      exit
+
+      line vty
+      exit
