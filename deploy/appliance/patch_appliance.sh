@@ -81,15 +81,14 @@ if [[ -s "${registries_conf}" ]]; then
 "
 fi
 
-# Quadlet files and configs
+# Quadlet files and openpeapi configs
 if [[ -d "${EXTRASDIR}/quadlets" ]]; then
-    # Stage all source files into the butane files-dir
-    # Quadlet files
+    # Stage quadlet files
     for f in controllerpod.pod controller.container routerpod.pod frr.container \
              reloader.container frr-sockets.volume; do
         cp "${EXTRASDIR}/quadlets/${f}" "${staging}/"
     done
-    # OpenPE API mode scripts and config
+    # Stage openpeapi scripts and config
     for f in openperouter-node-index.sh openperouter-raw-config.sh \
              patch-installer-config.sh; do
         cp "${EXTRASDIR}/openpeapi/${f}" "${staging}/"
@@ -125,14 +124,52 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
         local: openpe_config.yaml
 "
 
-    # Systemd units (using contents_local so butane reads from files-dir)
-    for f in openperouter-node-index.service openperouter-raw-config.service \
-             enable-virtual-interfaces.service; do
-        bu_units+="    - name: ${f}
+    # Systemd units (inlined)
+    bu_units+="    - name: openperouter-node-index.service
       enabled: true
-      contents_local: ${f}
+      contents: |
+        [Unit]
+        Description=Set OpenPERouter nodeIndex from bridge IP
+        After=network-online.target
+        Before=controllerpod.service routerpod.service
+        Wants=network-online.target
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/openperouter-node-index.sh
+        RemainAfterExit=yes
+        [Install]
+        WantedBy=multi-user.target
 "
-    done
+    bu_units+="    - name: openperouter-raw-config.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Generate OpenPERouter raw FRR config from bridge IP
+        After=network-online.target
+        Before=controllerpod.service routerpod.service
+        Wants=network-online.target
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/openperouter-raw-config.sh
+        RemainAfterExit=yes
+        [Install]
+        WantedBy=multi-user.target
+"
+    bu_units+="    - name: enable-virtual-interfaces.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Patch Assisted Service installer config for openperouter
+        Before=assisted-service-pod.service
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/patch-installer-config.sh
+        Restart=on-failure
+        RestartSec=2
+        RemainAfterExit=yes
+        [Install]
+        WantedBy=assisted-service-pod.service
+"
 fi
 
 # DNS config files from dns.bu
