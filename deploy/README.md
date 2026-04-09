@@ -52,10 +52,14 @@ Generate the agent config-image ISO that the appliance mounts at first boot. It 
 ### Build
 
 ```bash
-./deploy/config-image/generate_config_image.sh [config_image_dir]
+# openpeapi mode (default)
+./deploy/config-image-openpe/generate_config_image.sh [config_image_dir]
+
+# rawconfig mode
+./deploy/config-image-raw/generate_config_image.sh [config_image_dir]
 ```
 
-`config_image_dir` defaults to `deploy/config-image/configimage`. The ISO is written to `<config_image_dir>/agentconfig.noarch.iso`.
+`config_image_dir` defaults to `configimage/` inside the chosen folder. The ISO is written to `<config_image_dir>/agentconfig.noarch.iso`.
 
 The script:
 
@@ -66,7 +70,9 @@ The script:
 ### Generate MachineConfigs standalone
 
 ```bash
-./deploy/config-image/generate_machineconfigs.sh <output_dir>
+./deploy/config-image-openpe/generate_machineconfigs.sh <output_dir>
+# or, for rawconfig mode:
+./deploy/config-image-raw/generate_machineconfigs.sh <output_dir>
 ```
 
 Compiles butane sources (`openperouter.bu`, `dns.bu`, `registry.bu`) into MachineConfig YAML manifests without building the full config-image ISO.
