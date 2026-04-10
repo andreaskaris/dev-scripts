@@ -19,17 +19,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source common utilities
-if [[ ! -f "$SCRIPT_DIR/common.sh" ]]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: common.sh not found at $SCRIPT_DIR/common.sh" >&2
+if [[ ! -f "$SCRIPT_DIR/openperouter-common.sh" ]]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: openperouter-common.sh not found at $SCRIPT_DIR/openperouter-common.sh" >&2
     exit 1
 fi
 
-source "$SCRIPT_DIR/common.sh"
+source "$SCRIPT_DIR/openperouter-common.sh"
 
 # Verify required functions
 for func in frr_netns_pid inns isfrr_ready; do
     if ! declare -f "$func" >/dev/null 2>&1; then
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Required function $func not found in common.sh" >&2
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Required function $func not found in openperouter-common.sh" >&2
         exit 1
     fi
 done

@@ -16,12 +16,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source common utilities
-if [[ ! -f "$SCRIPT_DIR/common.sh" ]]; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: common.sh not found" >&2
+if [[ ! -f "$SCRIPT_DIR/openperouter-common.sh" ]]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: openperouter-common.sh not found" >&2
     exit 1
 fi
 
-source "$SCRIPT_DIR/common.sh"
+source "$SCRIPT_DIR/openperouter-common.sh"
 
 # Logging functions
 log() {

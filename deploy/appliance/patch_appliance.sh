@@ -91,7 +91,7 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
 
     if [[ -n "${USE_RAW:-}" ]]; then
         # Stage rawconfig scripts
-        for f in common.sh setup-underlay.sh setup-network.sh generate-config.sh; do
+        for f in openperouter-common.sh setup-underlay.sh setup-network.sh generate-config.sh; do
             cp "${EXTRASDIR}/rawconfig/${f}" "${staging}/"
         done
         # Stage rawconfig template and env
@@ -121,7 +121,7 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
 
     if [[ -n "${USE_RAW:-}" ]]; then
         # Rawconfig scripts -> /usr/local/bin/ (executable)
-        for f in common.sh setup-underlay.sh setup-network.sh generate-config.sh \
+        for f in openperouter-common.sh setup-underlay.sh setup-network.sh generate-config.sh \
                  patch-installer-config.sh; do
             bu_files+="    - path: /usr/local/bin/${f}
       mode: 0755

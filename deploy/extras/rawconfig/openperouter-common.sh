@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# common.sh - Convenience functions for working with the FRR container
-# Source this file: source systemdmode/common.sh
+# openperouter-common.sh - Convenience functions for working with the FRR container
+# Source this file: source openperouter-common.sh
 #
 # These functions are meant to be run on the node where podman runs
 # the frr container (e.g. inside a kind node).
