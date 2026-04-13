@@ -40,7 +40,7 @@ agent/05_agent_configure.sh
 # Step 3: Patch agent config for OpenPERouter bridge networking
 # ============================================================
 echo "==> Patching agent config..."
-openperouter/patch_agent_config.sh
+deploy/devscripts/patch_agent_config.sh
 
 # ============================================================
 # Step 4: Generate MachineConfig manifests
