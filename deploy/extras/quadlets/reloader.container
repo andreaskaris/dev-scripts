@@ -10,7 +10,7 @@ Documentation=https://github.com/openperouter
 
 [Container]
 # Container image - same as FRR container
-Image=quay.io/fpaoline/router:dev4
+Image=quay.io/fpaoline/router:dev5
 
 # Pod association - runs in same pod as FRR container
 Pod=routerpod.pod
