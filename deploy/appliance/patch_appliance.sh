@@ -97,14 +97,14 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
         # Stage rawconfig template and env
         cp "${EXTRASDIR}/rawconfig/openpe_evpn.yaml.template" "${staging}/"
         cp "${EXTRASDIR}/rawconfig/vpn-setup.env" "${staging}/"
-        # Stage shared installer patching script
-        cp "${EXTRASDIR}/openpeapi/patch-installer-config.sh" "${staging}/"
+        # Stage node-index and shared installer patching scripts
+        cp "${EXTRASDIR}/common/openperouter-node-index.sh" "${staging}/"
+        cp "${EXTRASDIR}/common/patch-installer-config.sh" "${staging}/"
     else
-        # Stage openpeapi scripts and config
-        for f in openperouter-node-index.sh openperouter-raw-config.sh \
-                 patch-installer-config.sh; do
-            cp "${EXTRASDIR}/openpeapi/${f}" "${staging}/"
-        done
+        # Stage common and openpeapi scripts and config
+        cp "${EXTRASDIR}/common/openperouter-node-index.sh" "${staging}/"
+        cp "${EXTRASDIR}/common/patch-installer-config.sh" "${staging}/"
+        cp "${EXTRASDIR}/openpeapi/openperouter-raw-config.sh" "${staging}/"
         cp "${EXTRASDIR}/openpeapi/openpe_config.yaml" "${staging}/"
     fi
 
@@ -122,7 +122,7 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
     if [[ -n "${USE_RAW:-}" ]]; then
         # Rawconfig scripts -> /usr/local/bin/ (executable)
         for f in openperouter-common.sh setup-underlay.sh setup-network.sh generate-config.sh \
-                 patch-installer-config.sh; do
+                 openperouter-node-index.sh patch-installer-config.sh; do
             bu_files+="    - path: /usr/local/bin/${f}
       mode: 0755
       overwrite: true
@@ -145,6 +145,15 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
       overwrite: true
       contents:
         local: vpn-setup.env
+"
+
+        # Empty openpe_config.yaml (controller needs it to exist)
+        touch "${staging}/openpe_config_empty.yaml"
+        bu_files+="    - path: /var/lib/openperouter/configs/openpe_config.yaml
+      mode: 0644
+      overwrite: true
+      contents:
+        local: openpe_config_empty.yaml
 "
 
         # Systemd units for rawconfig services
@@ -194,6 +203,21 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
         EnvironmentFile=-/etc/openperouter/vpn-setup.env
         ExecStart=/usr/local/bin/generate-config.sh
         TimeoutStartSec=60
+        [Install]
+        WantedBy=multi-user.target
+"
+        bu_units+="    - name: openperouter-node-index.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Set OpenPERouter nodeIndex from bridge IP
+        After=network-online.target
+        Before=controllerpod.service routerpod.service
+        Wants=network-online.target
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/openperouter-node-index.sh
+        RemainAfterExit=yes
         [Install]
         WantedBy=multi-user.target
 "

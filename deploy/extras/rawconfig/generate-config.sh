@@ -15,8 +15,8 @@ set -euo pipefail
 #   1   - General error
 
 # Load environment variables with defaults
-TOR_IP="${TOR_IP:-10.1.1.254}"
-TOR_AS="${TOR_AS:-65000}"
+TOR_IP="${TOR_IP:-192.168.111.1}"
+TOR_AS="${TOR_AS:-64512}"
 LOCAL_AS="${LOCAL_AS:-64514}"
 L2_VNI="${L2_VNI:-210}"
 L3_VNI="${L3_VNI:-100}"
@@ -100,14 +100,12 @@ mkdir -p "$(dirname "$CONFIG_OUTPUT")"
 # Render template using sed substitution
 sed -e "s|{{NODE_NAME}}|${NODE_NAME}|g" \
     -e "s|{{VTEP_IP}}|${VTEP_IP}|g" \
-    -e "s|{{UNDERLAY_NIC}}|${UNDERLAY_NIC}|g" \
     -e "s|{{TOR_IP}}|${TOR_IP}|g" \
     -e "s|{{TOR_AS}}|${TOR_AS}|g" \
     -e "s|{{LOCAL_AS}}|${LOCAL_AS}|g" \
     -e "s|{{VRF_NAME}}|${VRF_NAME}|g" \
     -e "s|{{L3_VNI}}|${L3_VNI}|g" \
     -e "s|{{L2_VNI}}|${L2_VNI}|g" \
-    -e "s|{{VXLAN_PORT}}|${VXLAN_PORT}|g" \
     -e "s|{{L2_GATEWAY_IP}}|${L2_GATEWAY_IP}|g" \
     "$CONFIG_TEMPLATE" > "$CONFIG_OUTPUT" || {
     error "Failed to render configuration template"
@@ -122,16 +120,16 @@ log "Configuration written to: $CONFIG_OUTPUT"
 log_step "Validating generated configuration"
 
 # Basic validation - check for key sections
-for section in "underlays:" "l3vnis:" "l2vnis:" "rawfrrconfigs:"; do
+for section in "rawfrrconfigs:"; do
     if ! grep -q "$section" "$CONFIG_OUTPUT"; then
         error "Generated config is missing required section: $section"
         exit_error "Invalid generated configuration"
     fi
 done
 
-# Check VTEP IP is present
-if ! grep -q "vtepcidr: ${VTEP_IP}" "$CONFIG_OUTPUT"; then
-    error "Generated config is missing VTEP IP configuration"
+# Check VTEP IP is present in the FRR config
+if ! grep -q "${VTEP_IP}" "$CONFIG_OUTPUT"; then
+    error "Generated config is missing VTEP IP"
     exit_error "Invalid VTEP IP in configuration"
 fi
 

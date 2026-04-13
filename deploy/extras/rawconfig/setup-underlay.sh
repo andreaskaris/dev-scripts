@@ -35,7 +35,7 @@ for func in frr_netns_pid inns isfrr_ready; do
 done
 
 # Load environment variables with defaults
-UNDERLAY_NIC="${UNDERLAY_NIC:-eth1}"
+UNDERLAY_NIC="${UNDERLAY_NIC:-enp2s0}"
 FRR_READY_TIMEOUT="${FRR_READY_TIMEOUT:-60}"
 NODE_NAME="${NODE_NAME:-$(hostname)}"
 
@@ -121,7 +121,7 @@ fi
 
 # Extract last octet for VTEP IP
 LAST_OCTET=$(echo "$BR0_IP" | cut -d. -f4)
-VTEP_IP="10.0.0.${LAST_OCTET}"
+VTEP_IP="100.65.0.${LAST_OCTET}"
 
 log "br0 IP address: $BR0_IP"
 log "Derived VTEP IP: $VTEP_IP (last octet: $LAST_OCTET)"
@@ -142,11 +142,11 @@ fi
 
 log "Found host NIC: $UNDERLAY_NIC"
 
-NIC_IP=$(ip -4 addr show "$UNDERLAY_NIC" | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1 || true)
-if [[ -z "$NIC_IP" ]]; then
+NIC_IP_CIDR=$(ip -4 addr show "$UNDERLAY_NIC" | grep -oP '(?<=inet\s)\d+(\.\d+){3}/\d+' | head -1 || true)
+if [[ -z "$NIC_IP_CIDR" ]]; then
     log "WARNING: Host NIC $UNDERLAY_NIC does not have an IP address configured"
 else
-    log "Host NIC IP address: $NIC_IP (will be preserved when moved)"
+    log "Host NIC IP address: $NIC_IP_CIDR (will be re-assigned after move)"
 fi
 
 FRR_PID=$(frr_netns_pid)
@@ -168,6 +168,17 @@ log "Bringing up $UNDERLAY_NIC in FRR namespace..."
 inns ip link set "$UNDERLAY_NIC" up 2>/dev/null || {
     log "WARNING: Failed to bring up $UNDERLAY_NIC in FRR namespace"
 }
+
+# Re-assign IP address (moving a NIC between namespaces strips its IP)
+if [[ -n "$NIC_IP_CIDR" ]]; then
+    log "Re-assigning IP $NIC_IP_CIDR to $UNDERLAY_NIC in FRR namespace..."
+    inns ip addr add "$NIC_IP_CIDR" dev "$UNDERLAY_NIC" 2>/dev/null || {
+        log "WARNING: Failed to assign IP (may already be configured)"
+    }
+    log "IP $NIC_IP_CIDR assigned to $UNDERLAY_NIC in FRR namespace"
+else
+    log "WARNING: No IP address was captured for $UNDERLAY_NIC before move - skipping IP assignment"
+fi
 
 log "Host NIC $UNDERLAY_NIC configured in FRR namespace"
 

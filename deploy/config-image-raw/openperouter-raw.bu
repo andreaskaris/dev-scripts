@@ -27,6 +27,12 @@ storage:
       overwrite: true
       contents:
         local: rawconfig/generate-config.sh
+    # --- Empty openpe_config.yaml (controller needs it to exist) ---
+    - path: /var/lib/openperouter/configs/openpe_config.yaml
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: ""
     # --- Rawconfig template and env (mode 0644) ---
     - path: /etc/openperouter/templates/openpe_evpn.yaml.template
       mode: 0644
@@ -38,12 +44,18 @@ storage:
       overwrite: true
       contents:
         local: rawconfig/vpn-setup.env
+    # --- Node index script ---
+    - path: /usr/local/bin/openperouter-node-index.sh
+      mode: 0755
+      overwrite: true
+      contents:
+        local: common/openperouter-node-index.sh
     # --- Shared installer patching script ---
     - path: /usr/local/bin/patch-installer-config.sh
       mode: 0755
       overwrite: true
       contents:
-        local: openpeapi/patch-installer-config.sh
+        local: common/patch-installer-config.sh
     # --- Quadlet files ---
     - path: /etc/containers/systemd/controllerpod.pod
       mode: 0644
@@ -161,6 +173,23 @@ systemd:
         SyslogIdentifier=generate-config
         TimeoutStartSec=60
         TimeoutStopSec=10
+
+        [Install]
+        WantedBy=multi-user.target
+    # --- Node index service ---
+    - name: openperouter-node-index.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Set OpenPERouter nodeIndex from bridge IP
+        After=network-online.target
+        Before=controllerpod.service routerpod.service
+        Wants=network-online.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/openperouter-node-index.sh
+        RemainAfterExit=yes
 
         [Install]
         WantedBy=multi-user.target

@@ -82,6 +82,22 @@ find_free_routing_table() {
 }
 
 #
+# STEP 0: Add VTEP IP to loopback in FRR namespace
+#
+log "Step 0: Adding VTEP IP to loopback in FRR namespace"
+
+if infrr ip addr show "$VTEP_INTERFACE" | grep -q "$VTEP_IP"; then
+    log "  VTEP IP $VTEP_IP already assigned to $VTEP_INTERFACE"
+else
+    infrr ip addr add "${VTEP_IP}/32" dev "$VTEP_INTERFACE" || {
+        error "Failed to add VTEP IP to $VTEP_INTERFACE"
+        exit 1
+    }
+    infrr ip link set "$VTEP_INTERFACE" up || true
+    log "  VTEP IP $VTEP_IP/32 added to $VTEP_INTERFACE"
+fi
+
+#
 # STEP 1: Create VRF in FRR namespace
 #
 log "Step 1: Creating VRF '$VRF_NAME'"
@@ -135,16 +151,21 @@ fi
 L3_VXLAN="vni${L3_VNI}"
 log "Step 3: Creating L3VNI VXLAN interface '$L3_VXLAN'"
 
-if infrr ip link show "$L3_VXLAN" >/dev/null 2>&1; then
-    log "  VXLAN '$L3_VXLAN' already exists"
+if infrr ip -d link show "$L3_VXLAN" 2>/dev/null | grep -q "vxlan id $L3_VNI"; then
+    log "  VXLAN '$L3_VXLAN' already exists with VNI $L3_VNI"
 else
     infrr ip link add "$L3_VXLAN" type vxlan \
         id "$L3_VNI" \
         local "$VTEP_IP" \
         dstport "$VXLAN_PORT" \
-        nolearning || {
-        error "Failed to create VXLAN $L3_VXLAN"
-        exit 1
+        nolearning 2>/dev/null || {
+        # Check if it was created by controller under a different name
+        if infrr ip -d link show 2>/dev/null | grep -q "vxlan id $L3_VNI"; then
+            log "  WARNING: VXLAN with VNI $L3_VNI already exists (created by controller)"
+        else
+            error "Failed to create VXLAN $L3_VXLAN"
+            exit 1
+        fi
     }
     # Enslave VXLAN to bridge
     infrr ip link set "$L3_VXLAN" master "$L3_BRIDGE" || {
