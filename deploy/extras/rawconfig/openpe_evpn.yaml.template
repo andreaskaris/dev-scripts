@@ -11,6 +11,7 @@
 #   {{L3_VNI}}         - L3VPN VXLAN VNI
 #   {{L2_VNI}}         - L2VPN VXLAN VNI
 #   {{L2_GATEWAY_IP}}  - L2VPN gateway IP
+#   {{BR0_IP}}         - Node's br0 IP address (advertised in VRF)
 
 rawfrrconfigs:
   - priority: 100
@@ -36,12 +37,14 @@ rawfrrconfigs:
        ! IPv4 unicast address family (underlay)
        address-family ipv4 unicast
         neighbor {{TOR_IP}} activate
+        neighbor {{TOR_IP}} allowas-in
         network {{VTEP_IP}}/32
        exit-address-family
 
        ! L2VPN EVPN address family (overlay)
        address-family l2vpn evpn
         neighbor {{TOR_IP}} activate
+        neighbor {{TOR_IP}} allowas-in
         advertise-all-vni
         advertise-svi-ip
        exit-address-family
@@ -56,6 +59,7 @@ rawfrrconfigs:
       router bgp {{LOCAL_AS}} vrf {{VRF_NAME}}
        address-family ipv4 unicast
         redistribute connected
+        network {{BR0_IP}}/32
        exit-address-family
 
        address-family l2vpn evpn

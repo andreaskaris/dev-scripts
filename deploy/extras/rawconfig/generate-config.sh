@@ -107,6 +107,7 @@ sed -e "s|{{NODE_NAME}}|${NODE_NAME}|g" \
     -e "s|{{L3_VNI}}|${L3_VNI}|g" \
     -e "s|{{L2_VNI}}|${L2_VNI}|g" \
     -e "s|{{L2_GATEWAY_IP}}|${L2_GATEWAY_IP}|g" \
+    -e "s|{{BR0_IP}}|${BR0_IP}|g" \
     "$CONFIG_TEMPLATE" > "$CONFIG_OUTPUT" || {
     error "Failed to render configuration template"
     exit_error "Template rendering failed"

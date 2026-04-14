@@ -82,7 +82,19 @@ find_free_routing_table() {
 }
 
 #
-# STEP 0: Add VTEP IP to loopback in FRR namespace
+# STEP 0a: Enable IP forwarding in FRR namespace
+#
+log "Step 0a: Enabling IP forwarding in FRR namespace"
+infrr sysctl -w net.ipv4.ip_forward=1 || {
+    error "Failed to enable IPv4 forwarding"
+    exit 1
+}
+infrr sysctl -w net.ipv4.conf.all.forwarding=1 || true
+infrr sysctl -w net.ipv6.conf.all.forwarding=1 || true
+log "  IP forwarding enabled (IPv4 and IPv6)"
+
+#
+# STEP 0b: Add VTEP IP to loopback in FRR namespace
 #
 log "Step 0: Adding VTEP IP to loopback in FRR namespace"
 

@@ -101,29 +101,47 @@ done
 log "FRR container is ready (bgpd operational)"
 
 #
-# STEP 2: Derive VTEP IP from br0
+# STEP 2: Derive VTEP IP from br0 (or br-ex after OVN takes over)
 #
-log_step "Deriving VTEP IP from br0"
+log_step "Deriving VTEP IP from bridge interface"
 
-if ! ip link show br0 >/dev/null 2>&1; then
-    error "br0 bridge does not exist"
-    error "Create br0 with: ip link add br0 type bridge && ip addr add <ip>/<cidr> dev br0 && ip link set br0 up"
-    exit_error "Missing prerequisite: br0 bridge"
-fi
+BR0_READY_TIMEOUT="${BR0_READY_TIMEOUT:-120}"
+BR0_ELAPSED=0
+BR0_INTERVAL=2
+BR0_IP=""
+BRIDGE_IFACE=""
 
-BR0_IP=$(ip -4 addr show br0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1 || true)
-
-if [[ -z "$BR0_IP" ]]; then
-    error "br0 bridge does not have an IP address assigned"
-    error "Assign an IP to br0 with: ip addr add <ip>/<cidr> dev br0"
-    exit_error "br0 must have an IP address configured"
-fi
+while [[ -z "$BR0_IP" ]]; do
+    # Check br0 first, then br-ex (OVN moves the IP from br0 to br-ex)
+    for iface in br0 br-ex; do
+        if ip link show "$iface" >/dev/null 2>&1; then
+            BR0_IP=$(ip -4 addr show "$iface" | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1 || true)
+            if [[ -n "$BR0_IP" ]]; then
+                BRIDGE_IFACE="$iface"
+                break
+            fi
+        fi
+    done
+    if [[ -n "$BR0_IP" ]]; then
+        break
+    fi
+    if [ $BR0_ELAPSED -ge $BR0_READY_TIMEOUT ]; then
+        error "No bridge interface (br0/br-ex) has an IP after ${BR0_READY_TIMEOUT}s"
+        error "Check: ip addr show br0; ip addr show br-ex"
+        exit_error "Bridge interface must have an IP address configured"
+    fi
+    if [ $((BR0_ELAPSED % 10)) -eq 0 ] && [ $BR0_ELAPSED -gt 0 ]; then
+        log "Waiting for bridge IP address... (${BR0_ELAPSED}s elapsed)"
+    fi
+    sleep $BR0_INTERVAL
+    BR0_ELAPSED=$((BR0_ELAPSED + BR0_INTERVAL))
+done
 
 # Extract last octet for VTEP IP
 LAST_OCTET=$(echo "$BR0_IP" | cut -d. -f4)
 VTEP_IP="100.65.0.${LAST_OCTET}"
 
-log "br0 IP address: $BR0_IP"
+log "Bridge interface: $BRIDGE_IFACE, IP: $BR0_IP"
 log "Derived VTEP IP: $VTEP_IP (last octet: $LAST_OCTET)"
 
 #
