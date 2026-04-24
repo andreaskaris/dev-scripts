@@ -1,13 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-# setup-underlay.sh - Set up underlay infrastructure for OpenPERouter
+# setup-underlay.sh - Set up underlay infrastructure for OpenPERouter (ISIS + SRv6)
 #
 # This script:
 # 1. Waits for FRR container to be ready
-# 2. Derives VTEP IP from br0
+# 2. Derives addressing from br0 (Router ID, IPv6 loopbacks, SRv6 locator, ISIS NET)
 # 3. Moves underlay NIC to FRR namespace
-# 4. Saves variables for config generation
+# 4. Configures IPv4/IPv6 loopback addresses and SRv6 sysctls in FRR namespace
+# 5. Saves variables for config generation
 #
 # Usage: Executed by systemd service setup-underlay.service
 #
@@ -38,6 +39,7 @@ done
 UNDERLAY_NIC="${UNDERLAY_NIC:-enp2s0}"
 FRR_READY_TIMEOUT="${FRR_READY_TIMEOUT:-60}"
 NODE_NAME="${NODE_NAME:-$(hostname)}"
+ISIS_AREA="${ISIS_AREA:-49.0001}"
 
 # Output file for variables
 VARS_FILE="${VARS_FILE:-/var/lib/openperouter/vpn-setup.vars}"
@@ -73,7 +75,7 @@ exit_timeout() {
 }
 
 # Start main execution
-log "Starting underlay setup"
+log "Starting underlay setup (ISIS + SRv6 mode)"
 log "Configuration: UNDERLAY_NIC=$UNDERLAY_NIC, NODE_NAME=$NODE_NAME"
 
 #
@@ -98,12 +100,12 @@ while ! isfrr_ready 2>/dev/null; do
     ELAPSED=$((ELAPSED + INTERVAL))
 done
 
-log "FRR container is ready (bgpd operational)"
+log "FRR container is ready"
 
 #
-# STEP 2: Derive VTEP IP from br0 (or br-ex after OVN takes over)
+# STEP 2: Derive addressing from br0 (or br-ex after OVN takes over)
 #
-log_step "Deriving VTEP IP from bridge interface"
+log_step "Deriving addressing from bridge interface"
 
 BR0_READY_TIMEOUT="${BR0_READY_TIMEOUT:-120}"
 BR0_ELAPSED=0
@@ -112,7 +114,6 @@ BR0_IP=""
 BRIDGE_IFACE=""
 
 while [[ -z "$BR0_IP" ]]; do
-    # Check br0 first, then br-ex (OVN moves the IP from br0 to br-ex)
     for iface in br0 br-ex; do
         if ip link show "$iface" >/dev/null 2>&1; then
             BR0_IP=$(ip -4 addr show "$iface" | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1 || true)
@@ -137,12 +138,26 @@ while [[ -z "$BR0_IP" ]]; do
     BR0_ELAPSED=$((BR0_ELAPSED + BR0_INTERVAL))
 done
 
-# Extract last octet for VTEP IP
+# Extract last octet — used as node index for all addressing
 LAST_OCTET=$(echo "$BR0_IP" | cut -d. -f4)
-VTEP_IP="100.65.0.${LAST_OCTET}"
+
+# Derive all addresses from node index
+ROUTER_ID="10.0.0.${LAST_OCTET}"
+VTEP_IP="$ROUTER_ID"
+LOOPBACK_V6="fc00:0:${LAST_OCTET}::1"
+SRV6_SOURCE="fd00:${LAST_OCTET}::1"
+SRV6_PREFIX="fd00:${LAST_OCTET}::/48"
+UNDERLAY_V6="fc00:100::${LAST_OCTET}"
+ISIS_NET="${ISIS_AREA}.0000.0000.$(printf '%04d' "${LAST_OCTET}").00"
 
 log "Bridge interface: $BRIDGE_IFACE, IP: $BR0_IP"
-log "Derived VTEP IP: $VTEP_IP (last octet: $LAST_OCTET)"
+log "Node index (last octet): $LAST_OCTET"
+log "  Router ID / VTEP IP: $ROUTER_ID"
+log "  Loopback IPv6:       $LOOPBACK_V6"
+log "  SRv6 source:         $SRV6_SOURCE"
+log "  SRv6 prefix:         $SRV6_PREFIX"
+log "  Underlay IPv6:       $UNDERLAY_V6"
+log "  ISIS NET:            $ISIS_NET"
 
 #
 # STEP 3: Move host NIC to FRR namespace
@@ -187,39 +202,96 @@ inns ip link set "$UNDERLAY_NIC" up 2>/dev/null || {
     log "WARNING: Failed to bring up $UNDERLAY_NIC in FRR namespace"
 }
 
-# Re-assign IP address (moving a NIC between namespaces strips its IP)
+# Re-assign IPv4 address
 if [[ -n "$NIC_IP_CIDR" ]]; then
     log "Re-assigning IP $NIC_IP_CIDR to $UNDERLAY_NIC in FRR namespace..."
     inns ip addr add "$NIC_IP_CIDR" dev "$UNDERLAY_NIC" 2>/dev/null || {
         log "WARNING: Failed to assign IP (may already be configured)"
     }
     log "IP $NIC_IP_CIDR assigned to $UNDERLAY_NIC in FRR namespace"
-else
-    log "WARNING: No IP address was captured for $UNDERLAY_NIC before move - skipping IP assignment"
 fi
+
+# Add IPv6 address to underlay NIC for ISIS adjacency
+log "Adding IPv6 $UNDERLAY_V6/64 to $UNDERLAY_NIC in FRR namespace..."
+inns ip -6 addr add "${UNDERLAY_V6}/64" dev "$UNDERLAY_NIC" 2>/dev/null || {
+    log "WARNING: IPv6 address may already be configured"
+}
 
 log "Host NIC $UNDERLAY_NIC configured in FRR namespace"
 
 #
-# STEP 4: Save variables for config generation
+# STEP 4: Configure loopback addresses and SRv6 sysctls in FRR namespace
+#
+log_step "Configuring loopback addresses and SRv6 in FRR namespace"
+
+# IPv6 loopback for BGP peering
+log "Adding IPv6 loopback $LOOPBACK_V6/128 to lo..."
+inns ip -6 addr add "${LOOPBACK_V6}/128" dev lo 2>/dev/null || {
+    log "WARNING: IPv6 loopback may already be configured"
+}
+
+# SRv6 source address on loopback
+log "Adding SRv6 source $SRV6_SOURCE/128 to lo..."
+inns ip -6 addr add "${SRV6_SOURCE}/128" dev lo 2>/dev/null || {
+    log "WARNING: SRv6 source may already be configured"
+}
+
+inns ip link set lo up 2>/dev/null || true
+
+# SRv6 sysctls
+log "Setting SRv6 sysctls..."
+inns sysctl -w net.ipv6.seg6_flowlabel=1 || {
+    log "WARNING: Failed to set seg6_flowlabel (kernel support required)"
+}
+inns sysctl -w net.ipv6.conf.all.seg6_enabled=1 || {
+    log "WARNING: Failed to enable seg6 (kernel support required)"
+}
+inns sysctl -w net.ipv6.conf.default.seg6_enabled=1 || true
+inns sysctl -w "net.ipv6.conf.${UNDERLAY_NIC}.seg6_enabled=1" || true
+inns sysctl -w net.ipv6.conf.lo.seg6_enabled=1 || true
+
+# IP forwarding
+inns sysctl -w net.ipv4.ip_forward=1 || true
+inns sysctl -w net.ipv6.conf.all.forwarding=1 || true
+
+log "Loopback and SRv6 configuration complete"
+
+#
+# STEP 5: Save variables for config generation
 #
 log_step "Saving variables for config generation"
 
 # Create directory if needed
 mkdir -p "$(dirname "$VARS_FILE")"
 
-# Write variables (will be sourced by generate-config.sh)
+# Write variables (will be sourced by generate-config.sh and setup-network.sh)
 cat > "$VARS_FILE" <<EOF
-# OpenPERouter VPN Setup Variables
+# OpenPERouter VPN Setup Variables (ISIS + SRv6)
 # Generated by setup-underlay.sh on $(date +'%Y-%m-%d %H:%M:%S')
 
-# Derived values
+# Node identity
+NODE_NAME="$NODE_NAME"
+LAST_OCTET="$LAST_OCTET"
+
+# Router ID and VTEP (same address — L2 VXLAN uses router-id as source)
+ROUTER_ID="$ROUTER_ID"
 VTEP_IP="$VTEP_IP"
 BR0_IP="$BR0_IP"
-LAST_OCTET="$LAST_OCTET"
-NODE_NAME="$NODE_NAME"
 
-# Underlay configuration
+# IPv6 loopback for BGP peering
+LOOPBACK_V6="$LOOPBACK_V6"
+
+# SRv6 addressing
+SRV6_SOURCE="$SRV6_SOURCE"
+SRV6_PREFIX="$SRV6_PREFIX"
+
+# Underlay IPv6
+UNDERLAY_V6="$UNDERLAY_V6"
+
+# ISIS
+ISIS_NET="$ISIS_NET"
+
+# Underlay NIC
 UNDERLAY_NIC="$UNDERLAY_NIC"
 FRR_PID="$FRR_PID"
 EOF
@@ -227,8 +299,5 @@ EOF
 chmod 644 "$VARS_FILE"
 
 log "Variables saved to $VARS_FILE"
-log "  VTEP_IP=$VTEP_IP"
-log "  NODE_NAME=$NODE_NAME"
-log "  UNDERLAY_NIC=$UNDERLAY_NIC"
 
 exit_success

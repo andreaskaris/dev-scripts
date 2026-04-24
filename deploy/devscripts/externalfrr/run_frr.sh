@@ -1,40 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run an external FRR instance with podman (host-networked) configured for
-# BGP EVPN, peering with the openperouter node over the extra network.
+# Run an external FRR instance as a remotepe with ISIS + SRv6 + iBGP.
+# Peers with master-0 (the EVPN/VPN route reflector) for L3VPN via SRv6.
+# No L2 EVPN / VXLAN — this node does L3VPN only.
 #
-# This creates:
-#   - A VTEP loopback address (100.64.0.1/32)
-#   - A VXLAN interface (vni100) with VNI 100, neighbor suppression enabled
-#   - A VRF "red" (table 10)
-#   - A linux bridge (br100) with vni100 as a port (VRF red)
-#   - A dummy loopback (advertised via redistribute connected)
-#   - An FRR container peering BGP EVPN with the node
+# Creates:
+#   - Loopback addresses (Router ID, IPv6, SRv6 source)
+#   - VRF "red" with a dummy loopback (lored)
+#   - SRv6 sysctls
+#   - FRR container with ISIS + BGP + SRv6 config
+#   - DNS server in VRF for cluster access
 #
 # Usage:
-#   ./run_frr.sh [node_ip ...]
-#
-# node_ip: one or more node IPs on the extra network (default: 192.168.111.80)
+#   ./run_frr.sh
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # --- Configuration ---
-if [[ $# -gt 0 ]]; then
-    NODE_IPS=("$@")
-else
-    NODE_IPS=("192.168.111.80" "192.168.111.81" "192.168.111.82")
-fi
-LOCAL_IP="${LOCAL_IP:-192.168.150.1}"
-LOCAL_ASN="${LOCAL_ASN:-64512}"
-REMOTE_ASN="${REMOTE_ASN:-64514}"
-VNI=100
+ISIS_IFACE="${ISIS_IFACE:-sno-labbm}"
+
+BGP_AS="${BGP_AS:-65500}"
+RR_LOOPBACK="${RR_LOOPBACK:-fc00:0:2::1}"
+
+# Addressing — fixed IPs for external FRR remotepe
+ROUTER_ID="${ROUTER_ID:-10.0.0.20}"
+LOOPBACK_V6="${LOOPBACK_V6:-fc00:0:20::1}"
+SRV6_SOURCE="${SRV6_SOURCE:-fd00:20::1}"
+SRV6_PREFIX="${SRV6_PREFIX:-fd00:20::/48}"
+UNDERLAY_V6="${UNDERLAY_V6:-fc00:100::20}"
+ISIS_NET="${ISIS_NET:-49.0001.0000.0000.0020.00}"
+VRF_LO_V4="${VRF_LO_V4:-10.10.20.1/32}"
+VRF_LO_V6="${VRF_LO_V6:-fc00:10:20::1/128}"
+
 VRF_NAME="red"
-VRF_TABLE=10
-VTEP_IP="${VTEP_IP:-100.64.0.1}"
-VXLAN_IF="vni${VNI}"
-BRIDGE_IF="br${VNI}"
-VXLAN_PORT=4789
+VRF_TABLE=1100
+
 VTEP_LO="lo-vtep"
 LO_NAME="lo-extra"
 LO_IP="${LO_IP:-10.100.0.1/32}"
@@ -49,30 +50,45 @@ FRR_IMAGE="${FRR_IMAGE:-quay.io/frrouting/frr:10.5.1}"
 FRR_CONF_DIR="${SCRIPTDIR}/config"
 
 echo "============================================="
-echo "External FRR for EVPN peering"
+echo "External FRR — RemotePE (ISIS + SRv6)"
 echo "============================================="
-echo "  Local IP:       ${LOCAL_IP}"
-echo "  VTEP IP:        ${VTEP_IP}/32"
-echo "  Node IPs:       ${NODE_IPS[*]}"
-echo "  Local ASN:      ${LOCAL_ASN}"
-echo "  Remote ASN:     ${REMOTE_ASN}"
-echo "  VNI:            ${VNI}"
+echo "  ISIS iface:     ${ISIS_IFACE}"
+echo "  Router ID:      ${ROUTER_ID}"
+echo "  Loopback IPv6:  ${LOOPBACK_V6}"
+echo "  SRv6 source:    ${SRV6_SOURCE}"
+echo "  SRv6 prefix:    ${SRV6_PREFIX}"
+echo "  ISIS NET:       ${ISIS_NET}"
+echo "  BGP AS:         ${BGP_AS}"
+echo "  RR loopback:    ${RR_LOOPBACK}"
 echo "  VRF:            ${VRF_NAME} (table ${VRF_TABLE})"
-echo "  VXLAN iface:    ${VXLAN_IF}"
-echo "  Bridge:         ${BRIDGE_IF}"
-echo "  Loopback:       ${LO_NAME} (${LO_IP})"
 echo "  FRR image:      ${FRR_IMAGE}"
 echo ""
 
-# --- VTEP loopback interface ---
-echo "Creating loopback ${VTEP_LO} with ${VTEP_IP}/32..."
+# --- Loopback interface for Router ID + IPv6 ---
+echo "Creating loopback ${VTEP_LO}..."
 if ip link show "${VTEP_LO}" &>/dev/null; then
     echo "  ${VTEP_LO} already exists, skipping"
 else
     sudo ip link add "${VTEP_LO}" type dummy
-    sudo ip addr add "${VTEP_IP}/32" dev "${VTEP_LO}"
     sudo ip link set "${VTEP_LO}" up
 fi
+sudo ip addr add "${ROUTER_ID}/32" dev "${VTEP_LO}" 2>/dev/null || true
+sudo ip -6 addr add "${LOOPBACK_V6}/128" dev "${VTEP_LO}" 2>/dev/null || true
+sudo ip -6 addr add "${SRV6_SOURCE}/128" dev "${VTEP_LO}" 2>/dev/null || true
+
+# --- Underlay IPv6 on ISIS interface ---
+echo "Adding underlay IPv6 ${UNDERLAY_V6}/64 to ${ISIS_IFACE}..."
+sudo ip -6 addr add "${UNDERLAY_V6}/64" dev "${ISIS_IFACE}" 2>/dev/null || true
+
+# --- SRv6 sysctls ---
+echo "Setting SRv6 sysctls..."
+sudo sysctl -w net.ipv4.ip_forward=1 >/dev/null
+sudo sysctl -w net.ipv6.conf.all.forwarding=1 >/dev/null
+sudo sysctl -w net.ipv6.seg6_flowlabel=1 >/dev/null 2>&1 || true
+sudo sysctl -w net.ipv6.conf.all.seg6_enabled=1 >/dev/null 2>&1 || true
+sudo sysctl -w net.ipv6.conf.default.seg6_enabled=1 >/dev/null 2>&1 || true
+sudo sysctl -w "net.ipv6.conf.${ISIS_IFACE}.seg6_enabled=1" >/dev/null 2>&1 || true
+sudo sysctl -w net.ipv6.conf.lo.seg6_enabled=1 >/dev/null 2>&1 || true
 
 # --- VRF ---
 echo "Creating VRF ${VRF_NAME} (table ${VRF_TABLE})..."
@@ -81,40 +97,22 @@ if ip link show "${VRF_NAME}" &>/dev/null; then
 else
     sudo ip link add "${VRF_NAME}" type vrf table "${VRF_TABLE}"
     sudo ip link set "${VRF_NAME}" up
-    # Allow all traffic in the VRF (DNS, etc.) by placing it in the trusted firewall zone
     sudo firewall-cmd --zone=trusted --add-interface="${VRF_NAME}" 2>/dev/null || true
 fi
 
-# --- VXLAN interface ---
-echo "Creating VXLAN interface ${VXLAN_IF} (VNI ${VNI})..."
-if ip link show "${VXLAN_IF}" &>/dev/null; then
-    echo "  ${VXLAN_IF} already exists, skipping"
+# --- VRF loopback (lored) ---
+echo "Creating VRF loopback 'lored'..."
+if ip link show "lored" &>/dev/null; then
+    echo "  lored already exists, skipping"
 else
-    sudo ip link add "${VXLAN_IF}" type vxlan \
-        id "${VNI}" \
-        local "${VTEP_IP}" \
-        dstport "${VXLAN_PORT}" \
-        nolearning
-    sudo ip link set "${VXLAN_IF}" addrgenmode none
-    sudo ip link set "${VXLAN_IF}" mtu 1450
-    sudo ip link set "${VXLAN_IF}" up
+    sudo ip link add lored type dummy
+    sudo ip link set lored master "${VRF_NAME}"
+    sudo ip link set lored up
 fi
+sudo ip addr add "${VRF_LO_V4}" dev lored 2>/dev/null || true
+sudo ip -6 addr add "${VRF_LO_V6}" dev lored 2>/dev/null || true
 
-# --- Bridge ---
-echo "Creating bridge ${BRIDGE_IF}..."
-if ip link show "${BRIDGE_IF}" &>/dev/null; then
-    echo "  ${BRIDGE_IF} already exists, skipping"
-else
-    sudo ip link add "${BRIDGE_IF}" type bridge
-    sudo ip link set "${BRIDGE_IF}" master "${VRF_NAME}"
-    sudo ip link set "${BRIDGE_IF}" mtu 1450
-    sudo ip link set "${BRIDGE_IF}" up
-    sudo ip link set "${VXLAN_IF}" master "${BRIDGE_IF}"
-    # Enable neighbor suppression on the VXLAN interface
-    sudo bridge link set dev "${VXLAN_IF}" neigh_suppress on
-fi
-
-# --- Extra loopback interface ---
+# --- Extra loopback for DNS ---
 echo "Creating loopback ${LO_NAME} with ${LO_IP}..."
 if ip link show "${LO_NAME}" &>/dev/null; then
     echo "  ${LO_NAME} already exists, skipping"
@@ -132,77 +130,111 @@ cat > "${FRR_CONF_DIR}/frr.conf" <<EOF
 log file /etc/frr/frr.log debug
 
 debug zebra events
-debug zebra vxlan
 debug bgp zebra
-debug zebra nht
-debug zebra kernel
-debug zebra rib
-debug zebra nexthop
-debug bgp neighbor-events
 debug bgp updates
-debug bgp keepalives
-debug bgp nht
+debug bgp neighbor-events
 !
-vrf ${VRF_NAME}
- vni ${VNI}
-exit-vrf
+interface ${ISIS_IFACE}
+ ip router isis PE
+ ipv6 router isis PE
+exit
 !
-router bgp ${LOCAL_ASN}
- bgp router-id ${VTEP_IP}
+interface lo
+ ip router isis PE
+ ipv6 router isis PE
+exit
+!
+router bgp ${BGP_AS}
+ bgp router-id ${ROUTER_ID}
  no bgp ebgp-requires-policy
- no bgp network import-check
  no bgp default ipv4-unicast
-$(for node_ip in "${NODE_IPS[@]}"; do
-echo " neighbor ${node_ip} remote-as ${REMOTE_ASN}"
-done)
+ no bgp network import-check
+ bgp log-neighbor-changes
  !
- address-family ipv4 unicast
-$(for node_ip in "${NODE_IPS[@]}"; do
-echo "  neighbor ${node_ip} activate"
-done)
-  network ${VTEP_IP}/32
-  redistribute connected
+ neighbor RR peer-group
+ neighbor RR remote-as ${BGP_AS}
+ neighbor RR update-source ${LOOPBACK_V6}
+ neighbor ${RR_LOOPBACK} peer-group RR
+ !
+ segment-routing srv6
+  locator MAIN
+ exit
+ !
+ address-family ipv4 vpn
+  neighbor RR activate
  exit-address-family
  !
- address-family ipv6 unicast
-  redistribute connected
- exit-address-family
- !
- address-family l2vpn evpn
-$(for node_ip in "${NODE_IPS[@]}"; do
-echo "  neighbor ${node_ip} activate"
-done)
-  advertise-all-vni
-  advertise-svi-ip
-  default-originate ipv4
+ address-family ipv6 vpn
+  neighbor RR activate
  exit-address-family
 exit
 !
-router bgp ${LOCAL_ASN} vrf ${VRF_NAME}
+router bgp ${BGP_AS} vrf ${VRF_NAME}
+ bgp router-id ${ROUTER_ID}
+ no bgp ebgp-requires-policy
+ no bgp default ipv4-unicast
+ no bgp network import-check
+ sid vpn per-vrf export auto
  !
  address-family ipv4 unicast
+  network ${VRF_LO_V4}
   redistribute connected
+  rd vpn export ${ROUTER_ID}:2
+  rt vpn both ${BGP_AS}:2
+  export vpn
+  import vpn
  exit-address-family
  !
  address-family ipv6 unicast
+  network ${VRF_LO_V6}
   redistribute connected
- exit-address-family
- !
- address-family l2vpn evpn
-  advertise ipv4 unicast
-  advertise ipv6 unicast
+  rd vpn export ${ROUTER_ID}:2
+  rt vpn both ${BGP_AS}:2
+  export vpn
+  import vpn
  exit-address-family
 exit
 !
+router isis PE
+ is-type level-1
+ net ${ISIS_NET}
+ topology ipv6-unicast
+ lsp-gen-interval 2
+ log-adjacency-changes
+ log-pdu-drops
+ segment-routing on
+ segment-routing srv6
+  locator MAIN
+ exit
+exit
+!
+segment-routing
+ srv6
+  encapsulation
+   source-address ${SRV6_SOURCE}
+  exit
+  locators
+   locator MAIN
+    prefix ${SRV6_PREFIX} block-len 32 node-len 16 func-bits 16
+    behavior usid
+   exit
+  exit
+ exit
+exit
+!
+end
 EOF
 
 cat > "${FRR_CONF_DIR}/daemons" <<EOF
+zebra=yes
 bgpd=yes
+isisd=yes
+staticd=yes
+bfdd=yes
 ospfd=no
 ospf6d=no
 ripd=no
 ripngd=no
-isisd=no
 pimd=no
 ldpd=no
 nhrpd=no
@@ -210,11 +242,9 @@ eigrpd=no
 babeld=no
 sharpd=no
 pbrd=no
-bfdd=no
 fabricd=no
 vrrpd=no
 pathd=no
-zebra=yes
 EOF
 
 cat > "${FRR_CONF_DIR}/vtysh.conf" <<EOF
@@ -246,7 +276,6 @@ DNS_CONF="${FRR_CONF_DIR}/dnsmasq.conf"
 if [ -n "${API_VIP}" ] && [ -n "${INGRESS_VIP}" ]; then
     echo "Setting up DNS server in VRF ${VRF_NAME} on ${LO_NAME} (${DNS_LISTEN_IP})..."
 
-    # Kill any existing dnsmasq listening on DNS_LISTEN_IP (stale or current)
     for pid in $(pgrep -f "dnsmasq.*${DNS_LISTEN_IP}" 2>/dev/null); do
         echo "  Killing existing dnsmasq (PID ${pid})..."
         sudo kill "${pid}" 2>/dev/null || true
@@ -279,11 +308,12 @@ fi
 
 echo ""
 echo "FRR is running. Useful commands:"
+echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh -c 'show isis neighbor'"
 echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh -c 'show bgp summary'"
-echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh -c 'show bgp l2vpn evpn summary'"
-echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh -c 'show evpn vni'"
-echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh -c 'show evpn mac vni ${VNI}'"
+echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh -c 'show bgp ipv4 vpn'"
+echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh -c 'show segment-routing srv6 locator'"
 echo "  sudo podman exec -it ${CONTAINER_NAME} vtysh"
 echo ""
-echo "Bridge ${BRIDGE_IF} is ready (VRF ${VRF_NAME})."
-echo "Attach VMs or veths to it for L2 connectivity over VNI ${VNI}."
+echo "L3VPN test (from VRF — ping master-0 br0):"
+echo "  sudo ip vrf exec ${VRF_NAME} ping 192.168.110.2"
+echo ""

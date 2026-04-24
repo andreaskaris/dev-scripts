@@ -54,11 +54,11 @@ isfrr_ready() {
         return 1
     fi
 
-    if echo "$daemons" | grep -q "bgpd"; then
-        echo "frr is ready (bgpd running)"
+    if echo "$daemons" | grep -q "bgpd" && echo "$daemons" | grep -q "isisd"; then
+        echo "frr is ready (bgpd + isisd running)"
         return 0
     else
-        echo "frr is running but bgpd is not active" >&2
+        echo "frr is running but bgpd/isisd not both active" >&2
         return 1
     fi
 }

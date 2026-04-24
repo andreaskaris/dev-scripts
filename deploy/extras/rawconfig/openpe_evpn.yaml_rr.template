@@ -1,12 +1,15 @@
-# OpenPERouter FRR Configuration Template — EVPN Client (ISIS + SRv6)
+# OpenPERouter FRR Configuration Template — EVPN Route Reflector (ISIS + SRv6)
 # Rendered by generate-config.sh using envsubst
 #
-# This node peers with the route reflector for EVPN/VPN routes.
+# This node acts as the EVPN/VPN route reflector for all other PEs.
 #
 # Variables:
 #   ${NODE_NAME}, ${UNDERLAY_NIC}, ${BGP_AS}, ${ROUTER_ID}
 #   ${LOOPBACK_V6}, ${SRV6_SOURCE}, ${SRV6_PREFIX}, ${ISIS_NET}
-#   ${VRF_NAME}, ${BR0_IP}, ${RR_LOOPBACK}
+#   ${VRF_NAME}, ${BR0_IP}
+#   ${EVPN_CLIENT_1}         - First client PE IPv6 loopback
+#   ${EVPN_CLIENT_2}         - Second client PE IPv6 loopback
+#   ${EXTERNAL_PEER_LOOPBACK} - External FRR (remotepe) IPv6 loopback
 
 rawfrrconfigs:
   - priority: 100
@@ -33,25 +36,30 @@ rawfrrconfigs:
        no bgp network import-check
        bgp log-neighbor-changes
        !
-       neighbor EVPN-RR peer-group
-       neighbor EVPN-RR remote-as ${BGP_AS}
-       neighbor EVPN-RR update-source ${LOOPBACK_V6}
-       neighbor ${RR_LOOPBACK} peer-group EVPN-RR
+       neighbor EVPN-CLIENTS peer-group
+       neighbor EVPN-CLIENTS remote-as ${BGP_AS}
+       neighbor EVPN-CLIENTS update-source ${LOOPBACK_V6}
+       neighbor ${EVPN_CLIENT_1} peer-group EVPN-CLIENTS
+       neighbor ${EVPN_CLIENT_2} peer-group EVPN-CLIENTS
+       neighbor ${EXTERNAL_PEER_LOOPBACK} peer-group EVPN-CLIENTS
        !
        segment-routing srv6
         locator MAIN
        exit
        !
        address-family ipv4 vpn
-        neighbor EVPN-RR activate
+        neighbor EVPN-CLIENTS activate
+        neighbor EVPN-CLIENTS route-reflector-client
        exit-address-family
        !
        address-family ipv6 vpn
-        neighbor EVPN-RR activate
+        neighbor EVPN-CLIENTS activate
+        neighbor EVPN-CLIENTS route-reflector-client
        exit-address-family
        !
        address-family l2vpn evpn
-        neighbor EVPN-RR activate
+        neighbor EVPN-CLIENTS activate
+        neighbor EVPN-CLIENTS route-reflector-client
         advertise-all-vni
         advertise-svi-ip
        exit-address-family

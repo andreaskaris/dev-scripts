@@ -11,6 +11,12 @@ storage:
       overwrite: true
       contents:
         local: openpeapi/openpe_config.yaml
+    # --- FRR daemons file (enables isisd for ISIS + SRv6) ---
+    - path: /etc/perouter/daemons
+      mode: 0644
+      overwrite: true
+      contents:
+        local: quadlets/daemons
     - path: /usr/local/bin/openperouter-node-index.sh
       mode: 0755
       overwrite: true

@@ -1,13 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-# setup-network.sh - Network infrastructure setup for L2/L3 VNIs
+# setup-network.sh - Network infrastructure setup for SRv6 + L2 EVPN
 #
-# This script creates the network infrastructure (VRFs, bridges, VXLAN interfaces, veths)
-# that would normally be created by the OpenPERouter controller.
-# It uses the FRR namespace to set up the network configuration.
+# This script creates the network infrastructure (VRF, L2 VXLAN, bridges, veths)
+# in the FRR namespace. L3VPN is handled by SRv6 (no L3VNI VXLAN needed).
+# L2VPN still uses VXLAN overlay.
 #
-# Usage: Executed by setup-vpn.sh before applying FRR configuration
+# Usage: Executed by setup-network.service after setup-underlay.service
 #
 # Exit codes:
 #   0   - Success
@@ -43,12 +43,12 @@ fi
 
 # Parameters (from environment or defaults)
 VRF_NAME="${VRF_NAME:-red}"
+VRF_TABLE="${VRF_TABLE:-1100}"
 L2_VNI="${L2_VNI:-210}"
-L3_VNI="${L3_VNI:-100}"
 VXLAN_PORT="${VXLAN_PORT:-4789}"
 L2_GATEWAY_IP="${L2_GATEWAY_IP:-192.168.110.1/24}"
-VTEP_IP="${VTEP_IP}"  # Must be provided (from vars file or environment)
-VTEP_INTERFACE="${VTEP_INTERFACE:-lo}"  # Loopback for VTEP source
+VTEP_IP="${VTEP_IP}"
+VTEP_INTERFACE="${VTEP_INTERFACE:-lo}"
 
 if [[ -z "$VTEP_IP" ]]; then
     error "VTEP_IP not set - must be provided via $VARS_FILE or environment"
@@ -64,21 +64,11 @@ if [[ -z "$FRR_PID" || "$FRR_PID" == "0" ]]; then
 fi
 
 log "Setting up network infrastructure in FRR namespace (PID: $FRR_PID)"
-log "Configuration: VRF=$VRF_NAME, L2_VNI=$L2_VNI, L3_VNI=$L3_VNI, VTEP_IP=$VTEP_IP"
+log "Configuration: VRF=$VRF_NAME (table $VRF_TABLE), L2_VNI=$L2_VNI, VTEP_IP=$VTEP_IP"
 
 # Helper function: run command in FRR namespace
 infrr() {
     inns "$@"
-}
-
-# Helper function: find free routing table ID
-find_free_routing_table() {
-    local used_tables=$(infrr ip -j link show type vrf 2>/dev/null | grep -oP '"table":\s*\K\d+' || echo "")
-    local table_id=1
-    while echo "$used_tables" | grep -q "^${table_id}$"; do
-        table_id=$((table_id + 1))
-    done
-    echo "$table_id"
 }
 
 #
@@ -96,7 +86,7 @@ log "  IP forwarding enabled (IPv4 and IPv6)"
 #
 # STEP 0b: Add VTEP IP to loopback in FRR namespace
 #
-log "Step 0: Adding VTEP IP to loopback in FRR namespace"
+log "Step 0b: Adding VTEP IP to loopback in FRR namespace"
 
 if infrr ip addr show "$VTEP_INTERFACE" | grep -q "$VTEP_IP"; then
     log "  VTEP IP $VTEP_IP already assigned to $VTEP_INTERFACE"
@@ -110,16 +100,22 @@ else
 fi
 
 #
+# STEP 0c: VRF strict mode
+#
+log "Step 0c: Enabling VRF strict mode"
+infrr sysctl -w net.vrf.strict_mode=1 2>/dev/null || {
+    log "  WARNING: VRF strict mode not available"
+}
+
+#
 # STEP 1: Create VRF in FRR namespace
 #
-log "Step 1: Creating VRF '$VRF_NAME'"
+log "Step 1: Creating VRF '$VRF_NAME' (table $VRF_TABLE)"
 
 if infrr ip link show "$VRF_NAME" >/dev/null 2>&1; then
     log "  VRF '$VRF_NAME' already exists"
 else
-    TABLE_ID=200
-    log "  Creating VRF with table ID: $TABLE_ID"
-    infrr ip link add "$VRF_NAME" type vrf table "$TABLE_ID" || {
+    infrr ip link add "$VRF_NAME" type vrf table "$VRF_TABLE" || {
         error "Failed to create VRF $VRF_NAME"
         exit 1
     }
@@ -131,74 +127,10 @@ else
 fi
 
 #
-# STEP 2: Create L3VNI bridge in FRR namespace
-#
-L3_BRIDGE="br-pe-${L3_VNI}"
-log "Step 2: Creating L3VNI bridge '$L3_BRIDGE'"
-
-if infrr ip link show "$L3_BRIDGE" >/dev/null 2>&1; then
-    log "  Bridge '$L3_BRIDGE' already exists"
-else
-    infrr ip link add "$L3_BRIDGE" type bridge || {
-        error "Failed to create bridge $L3_BRIDGE"
-        exit 1
-    }
-    # Enslave bridge to VRF
-    infrr ip link set "$L3_BRIDGE" master "$VRF_NAME" || {
-        error "Failed to enslave bridge to VRF"
-        exit 1
-    }
-    # Disable IPv6 address auto-generation
-    infrr sysctl -w "net.ipv6.conf.${L3_BRIDGE}.addr_gen_mode=1" 2>/dev/null || true
-    infrr ip link set "$L3_BRIDGE" up || {
-        error "Failed to bring up bridge $L3_BRIDGE"
-        exit 1
-    }
-    log "  Bridge '$L3_BRIDGE' created and enslaved to VRF"
-fi
-
-#
-# STEP 3: Create L3VNI VXLAN interface in FRR namespace
-#
-L3_VXLAN="vni${L3_VNI}"
-log "Step 3: Creating L3VNI VXLAN interface '$L3_VXLAN'"
-
-if infrr ip -d link show "$L3_VXLAN" 2>/dev/null | grep -q "vxlan id $L3_VNI"; then
-    log "  VXLAN '$L3_VXLAN' already exists with VNI $L3_VNI"
-else
-    infrr ip link add "$L3_VXLAN" type vxlan \
-        id "$L3_VNI" \
-        local "$VTEP_IP" \
-        dstport "$VXLAN_PORT" \
-        nolearning 2>/dev/null || {
-        # Check if it was created by controller under a different name
-        if infrr ip -d link show 2>/dev/null | grep -q "vxlan id $L3_VNI"; then
-            log "  WARNING: VXLAN with VNI $L3_VNI already exists (created by controller)"
-        else
-            error "Failed to create VXLAN $L3_VXLAN"
-            exit 1
-        fi
-    }
-    # Enslave VXLAN to bridge
-    infrr ip link set "$L3_VXLAN" master "$L3_BRIDGE" || {
-        error "Failed to enslave VXLAN to bridge"
-        exit 1
-    }
-    # Disable IPv6 address auto-generation and enable neighbor suppression
-    infrr sysctl -w "net.ipv6.conf.${L3_VXLAN}.addr_gen_mode=1" 2>/dev/null || true
-    infrr ip link set "$L3_VXLAN" type bridge_slave neigh_suppress on 2>/dev/null || true
-    infrr ip link set "$L3_VXLAN" up || {
-        error "Failed to bring up VXLAN $L3_VXLAN"
-        exit 1
-    }
-    log "  VXLAN '$L3_VXLAN' created and enslaved to bridge"
-fi
-
-#
-# STEP 4: Create L2VNI bridge in FRR namespace
+# STEP 2: Create L2VNI bridge in FRR namespace
 #
 L2_BRIDGE="br-pe-${L2_VNI}"
-log "Step 4: Creating L2VNI bridge '$L2_BRIDGE'"
+log "Step 2: Creating L2VNI bridge '$L2_BRIDGE'"
 
 if infrr ip link show "$L2_BRIDGE" >/dev/null 2>&1; then
     log "  Bridge '$L2_BRIDGE' already exists"
@@ -207,12 +139,10 @@ else
         error "Failed to create bridge $L2_BRIDGE"
         exit 1
     }
-    # Enslave bridge to VRF
     infrr ip link set "$L2_BRIDGE" master "$VRF_NAME" || {
         error "Failed to enslave bridge to VRF"
         exit 1
     }
-    # Disable IPv6 address auto-generation
     infrr sysctl -w "net.ipv6.conf.${L2_BRIDGE}.addr_gen_mode=1" 2>/dev/null || true
     infrr ip link set "$L2_BRIDGE" up || {
         error "Failed to bring up bridge $L2_BRIDGE"
@@ -222,9 +152,9 @@ else
 fi
 
 #
-# STEP 5: Assign L2 gateway IP to bridge
+# STEP 3: Assign L2 gateway IP to bridge
 #
-log "Step 5: Assigning gateway IP to L2 bridge"
+log "Step 3: Assigning gateway IP to L2 bridge"
 
 if infrr ip addr show "$L2_BRIDGE" | grep -q "$L2_GATEWAY_IP"; then
     log "  Gateway IP already assigned"
@@ -241,10 +171,10 @@ else
 fi
 
 #
-# STEP 6: Create L2VNI VXLAN interface in FRR namespace
+# STEP 4: Create L2VNI VXLAN interface in FRR namespace
 #
 L2_VXLAN="vni${L2_VNI}"
-log "Step 6: Creating L2VNI VXLAN interface '$L2_VXLAN'"
+log "Step 4: Creating L2VNI VXLAN interface '$L2_VXLAN'"
 
 if infrr ip link show "$L2_VXLAN" >/dev/null 2>&1; then
     log "  VXLAN '$L2_VXLAN' already exists"
@@ -257,12 +187,10 @@ else
         error "Failed to create VXLAN $L2_VXLAN"
         exit 1
     }
-    # Enslave VXLAN to bridge
     infrr ip link set "$L2_VXLAN" master "$L2_BRIDGE" || {
         error "Failed to enslave VXLAN to bridge"
         exit 1
     }
-    # Disable IPv6 address auto-generation and enable neighbor suppression
     infrr sysctl -w "net.ipv6.conf.${L2_VXLAN}.addr_gen_mode=1" 2>/dev/null || true
     infrr ip link set "$L2_VXLAN" type bridge_slave neigh_suppress on 2>/dev/null || true
     infrr ip link set "$L2_VXLAN" up || {
@@ -273,36 +201,32 @@ else
 fi
 
 #
-# STEP 7: Create veth pair for L2VNI (host <-> FRR namespace)
+# STEP 5: Create veth pair for L2VNI (host <-> FRR namespace)
 #
 HOST_VETH="host-${L2_VNI}"
 PE_VETH="pe-${L2_VNI}"
-log "Step 7: Creating veth pair for L2VNI: $HOST_VETH <-> $PE_VETH"
+log "Step 5: Creating veth pair for L2VNI: $HOST_VETH <-> $PE_VETH"
 
 if ip link show "$HOST_VETH" >/dev/null 2>&1; then
     log "  Veth pair already exists"
 else
-    # Create veth pair in host namespace
     ip link add "$HOST_VETH" type veth peer name "$PE_VETH" || {
         error "Failed to create veth pair"
         exit 1
     }
     log "  Veth pair created"
 
-    # Move PE side to FRR namespace
     ip link set "$PE_VETH" netns "$FRR_PID" || {
         error "Failed to move $PE_VETH to FRR namespace"
         exit 1
     }
     log "  Moved $PE_VETH to FRR namespace"
 
-    # Bring up host side
     ip link set "$HOST_VETH" up || {
         error "Failed to bring up $HOST_VETH"
         exit 1
     }
 
-    # Enslave PE side to L2 bridge in FRR namespace
     infrr ip link set "$PE_VETH" master "$L2_BRIDGE" || {
         error "Failed to enslave $PE_VETH to bridge"
         exit 1
@@ -315,16 +239,15 @@ else
 fi
 
 #
-# STEP 8: Attach host-side veth to br0
+# STEP 6: Attach host-side veth to br0
 #
-log "Step 8: Attaching $HOST_VETH to br0"
+log "Step 6: Attaching $HOST_VETH to br0"
 
 if ! ip link show br0 >/dev/null 2>&1; then
     error "br0 bridge does not exist - cannot attach veth"
     exit 1
 fi
 
-# Check if already attached
 if ip link show "$HOST_VETH" | grep -q "master br0"; then
     log "  $HOST_VETH already attached to br0"
 else
@@ -339,12 +262,12 @@ log ""
 log "Network infrastructure setup completed successfully!"
 log ""
 log "Summary:"
-log "  VRF: $VRF_NAME"
-log "  L3VNI: Bridge=$L3_BRIDGE, VXLAN=$L3_VXLAN, VNI=$L3_VNI"
+log "  VRF: $VRF_NAME (table $VRF_TABLE)"
 log "  L2VNI: Bridge=$L2_BRIDGE, VXLAN=$L2_VXLAN, VNI=$L2_VNI"
 log "  L2 Gateway IP: $L2_GATEWAY_IP"
 log "  Veth pair: $HOST_VETH (on br0) <-> $PE_VETH (on $L2_BRIDGE)"
 log "  VTEP IP: $VTEP_IP"
+log "  L3VPN: handled by SRv6 (no L3VNI VXLAN)"
 log ""
 
 exit 0
