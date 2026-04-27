@@ -25,6 +25,11 @@ BRIDGE_PREFIX="24"
 BRIDGE_GW="192.168.110.1"
 BRIDGE_NAME="br0"
 
+BRIDGE_V6_SUBNET="fd00:110::/64"
+BRIDGE_V6_BASE="fd00:110::"
+BRIDGE_V6_PREFIX="64"
+BRIDGE_V6_GW="fd00:110::1"
+
 NIC_PREFIX="24"
 
 WORKING_DIR="${WORKING_DIR:-/opt/dev-scripts}"
@@ -35,6 +40,12 @@ INSTALL_CONFIG="${WORKING_DIR}/ocp/${CLUSTER_NAME}/install-config.yaml"
 NIC_NAME="enp2s0"
 PROV_NIC_NAME="enp1s0"
 EXTRA_NIC_NAME="enp3s0"
+
+# Extra NIC subnet (from EXTERNAL_NETWORK_SUBNET_V4 in config)
+EXTRA_NIC_SUBNET="${EXTERNAL_NETWORK_SUBNET_V4:-192.168.150.0/24}"
+EXTRA_NIC_BASE="${EXTRA_NIC_SUBNET%.*}"
+EXTRA_NIC_PREFIX="${EXTRA_NIC_SUBNET#*/}"
+EXTRA_NIC_START_OCTET="20"
 
 # DNS server: the host's baremetal IP where dnsmasq runs with cluster records
 DNS_SERVER="${DNS_SERVER:-192.168.111.1}"
@@ -49,6 +60,7 @@ fi
 
 # Compute the bridge network from the first bridge IP
 BRIDGE_NETWORK="${FIRST_BRIDGE_IP%.*}.0/${BRIDGE_PREFIX}"
+BRIDGE_V6_NETWORK="${BRIDGE_V6_SUBNET}"
 
 # Extract the last octet of the first bridge IP as the starting offset
 FIRST_OCTET="${FIRST_BRIDGE_IP##*.}"
@@ -67,11 +79,17 @@ if num_hosts == 0:
 
 bridge_base = '${FIRST_BRIDGE_IP%.*}'
 bridge_start_octet = ${FIRST_OCTET}
+bridge_v6_base = '${BRIDGE_V6_BASE}'
+
+extra_nic_base = '${EXTRA_NIC_BASE}'
+extra_nic_start_octet = ${EXTRA_NIC_START_OCTET}
 
 cfg['additionalNTPSources'] = ['${NTP_SERVER}']
 
 for i, host in enumerate(cfg['hosts']):
     bridge_ip = f'{bridge_base}.{bridge_start_octet + i}'
+    bridge_ip_v6 = f'{bridge_v6_base}{bridge_start_octet + i}'
+    extra_nic_ip = f'{extra_nic_base}.{extra_nic_start_octet + i}'
 
     # Set rendezvousIP to the first node's bridge IP
     if i == 0:
@@ -94,7 +112,7 @@ for i, host in enumerate(cfg['hosts']):
         print(f'ERROR: Could not extract NIC IP for host {i}', file=sys.stderr)
         sys.exit(1)
 
-    print(f'  Host {i}: MAC={mac}  NIC_IP={nic_ip}  Bridge_IP={bridge_ip}')
+    print(f'  Host {i}: MAC={mac}  NIC_IP={nic_ip}  Bridge_IP={bridge_ip}  Bridge_IPv6={bridge_ip_v6}  Extra_NIC_IP={extra_nic_ip}')
 
     host['networkConfig'] = {
         'interfaces': [
@@ -120,7 +138,11 @@ for i, host in enumerate(cfg['hosts']):
                 'name': '${EXTRA_NIC_NAME}',
                 'type': 'ethernet',
                 'state': 'up',
-                'ipv4': {'enabled': False},
+                'ipv4': {
+                    'enabled': True,
+                    'address': [{'ip': extra_nic_ip, 'prefix-length': ${EXTRA_NIC_PREFIX}}],
+                    'dhcp': False,
+                },
                 'ipv6': {'enabled': False},
             },
             {
@@ -139,6 +161,11 @@ for i, host in enumerate(cfg['hosts']):
                     'address': [{'ip': bridge_ip, 'prefix-length': ${BRIDGE_PREFIX}}],
                     'dhcp': False,
                 },
+                'ipv6': {
+                    'enabled': True,
+                    'address': [{'ip': bridge_ip_v6, 'prefix-length': ${BRIDGE_V6_PREFIX}}],
+                    'dhcp': False,
+                },
                 'bridge': {
                     'port': [{'name': 'dummy0'}],
                 },
@@ -146,7 +173,7 @@ for i, host in enumerate(cfg['hosts']):
         ],
         'dns-resolver': {
             'config': {
-                'server': ['${BRIDGE_GW}'],
+                'server': ['${BRIDGE_GW}', '${BRIDGE_V6_GW}'],
             },
         },
         'routes': {
@@ -154,6 +181,12 @@ for i, host in enumerate(cfg['hosts']):
                 {
                     'destination': '0.0.0.0/0',
                     'next-hop-address': '${BRIDGE_GW}',
+                    'next-hop-interface': '${BRIDGE_NAME}',
+                    'table-id': 254,
+                },
+                {
+                    'destination': '::/0',
+                    'next-hop-address': '${BRIDGE_V6_GW}',
                     'next-hop-interface': '${BRIDGE_NAME}',
                     'table-id': 254,
                 },
@@ -173,26 +206,28 @@ echo "Patched ${AGENT_CONFIG} successfully."
 BRIDGE_SUBNET="${FIRST_BRIDGE_IP%.*}"
 API_VIP="${API_VIP:-${BRIDGE_SUBNET}.10}"
 INGRESS_VIP="${INGRESS_VIP:-${BRIDGE_SUBNET}.11}"
+API_VIP_V6="${API_VIP_V6:-${BRIDGE_V6_BASE}10}"
+INGRESS_VIP_V6="${INGRESS_VIP_V6:-${BRIDGE_V6_BASE}11}"
 
 echo "Patching ${INSTALL_CONFIG}:"
-echo "  machineNetwork -> ${BRIDGE_NETWORK}"
-echo "  apiVIPs        -> ${API_VIP}"
-echo "  ingressVIPs    -> ${INGRESS_VIP}"
+echo "  machineNetwork -> ${BRIDGE_NETWORK}, ${BRIDGE_V6_NETWORK}"
+echo "  apiVIPs        -> ${API_VIP}, ${API_VIP_V6}"
+echo "  ingressVIPs    -> ${INGRESS_VIP}, ${INGRESS_VIP_V6}"
 python3 -c "
 import yaml
 
 with open('${INSTALL_CONFIG}') as f:
     cfg = yaml.safe_load(f)
 
-cfg['networking']['machineNetwork'] = [{'cidr': '${BRIDGE_NETWORK}'}]
+cfg['networking']['machineNetwork'] = [{'cidr': '${BRIDGE_NETWORK}'}, {'cidr': '${BRIDGE_V6_NETWORK}'}]
 
 # For multinode clusters, VIPs must be in the machine network
 if 'platform' in cfg and 'baremetal' in cfg['platform']:
     bm = cfg['platform']['baremetal']
     if 'apiVIPs' in bm:
-        bm['apiVIPs'] = ['${API_VIP}']
+        bm['apiVIPs'] = ['${API_VIP}', '${API_VIP_V6}']
     if 'ingressVIPs' in bm:
-        bm['ingressVIPs'] = ['${INGRESS_VIP}']
+        bm['ingressVIPs'] = ['${INGRESS_VIP}', '${INGRESS_VIP_V6}']
 
 with open('${INSTALL_CONFIG}', 'w') as f:
     yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)

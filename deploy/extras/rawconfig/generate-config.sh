@@ -22,6 +22,7 @@ EXTERNAL_PEER_LOOPBACK="${EXTERNAL_PEER_LOOPBACK:-fc00:0:20::1}"
 VRF_NAME="${VRF_NAME:-red}"
 L2_VNI="${L2_VNI:-210}"
 L2_GATEWAY_IP="${L2_GATEWAY_IP:-192.168.110.1/24}"
+L2_GATEWAY_IP_V6="${L2_GATEWAY_IP_V6:-fd00:110::1/64}"
 UNDERLAY_NIC="${UNDERLAY_NIC:-enp2s0}"
 
 # All master node indices (br0 last octets)
@@ -133,7 +134,7 @@ mkdir -p "$(dirname "$CONFIG_OUTPUT")"
 # Export all variables for envsubst
 export NODE_NAME UNDERLAY_NIC BGP_AS ROUTER_ID LOOPBACK_V6
 export SRV6_SOURCE SRV6_PREFIX ISIS_NET
-export VRF_NAME BR0_IP L2_GATEWAY_IP L2_VNI
+export VRF_NAME BR0_IP BR0_IP_V6 L2_GATEWAY_IP L2_GATEWAY_IP_V6 L2_VNI
 
 envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_OUTPUT" || {
     error "Failed to render configuration template"

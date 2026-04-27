@@ -21,14 +21,14 @@ export CLUSTER_NAME="sno-lab"
 export BASE_DOMAIN="example.com"
 
 # --- AGENT-BASED INSTALLER ---
-export AGENT_E2E_TEST_SCENARIO="COMPACT_IPV4"
+export AGENT_E2E_TEST_SCENARIO="HA_IPV4V6"
 export AGENT_E2E_TEST_BOOT_MODE="APPLIANCE_ISO"
 export OPENSHIFT_VERSION=4.20.16
 export OPENSHIFT_RELEASE_STREAM=4.20
 export OPENSHIFT_RELEASE_TYPE="ga"
 
 # --- NETWORKING ---
-export IP_STACK="v4"
+export IP_STACK="v4v6"
 export NETWORK_TYPE="OVNKubernetes"
 export OVN_LOCAL_GATEWAY_MODE=true
 #export EXTERNAL_SUBNET_V4="10.10.0.0/24"
@@ -38,8 +38,9 @@ export OVN_LOCAL_GATEWAY_MODE=true
 export EXTRA_NETWORK_NAMES="external"
 export EXTERNAL_NETWORK_SUBNET_V4='192.168.150.0/24'
 
+# --- NODES ---
+
 # --- VM RESOURCES ---
-# Explicit values matching the COMPACT_IPV4 preset to document intent
 export MASTER_MEMORY=32768
 export MASTER_VCPU=8
 export MASTER_DISK=100

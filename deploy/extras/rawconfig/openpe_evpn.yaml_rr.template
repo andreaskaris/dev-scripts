@@ -6,7 +6,7 @@
 # Variables:
 #   ${NODE_NAME}, ${UNDERLAY_NIC}, ${BGP_AS}, ${ROUTER_ID}
 #   ${LOOPBACK_V6}, ${SRV6_SOURCE}, ${SRV6_PREFIX}, ${ISIS_NET}
-#   ${VRF_NAME}, ${BR0_IP}
+#   ${VRF_NAME}, ${BR0_IP}, ${BR0_IP_V6}
 #   ${EVPN_CLIENT_1}         - First client PE IPv6 loopback
 #   ${EVPN_CLIENT_2}         - Second client PE IPv6 loopback
 #   ${EXTERNAL_PEER_LOOPBACK} - External FRR (remotepe) IPv6 loopback
@@ -74,7 +74,6 @@ rawfrrconfigs:
        !
        address-family ipv4 unicast
         network ${BR0_IP}/32
-        redistribute connected
         rd vpn export ${ROUTER_ID}:2
         rt vpn both ${BGP_AS}:2
         export vpn
@@ -82,7 +81,7 @@ rawfrrconfigs:
        exit-address-family
        !
        address-family ipv6 unicast
-        redistribute connected
+        network ${BR0_IP_V6}/128
         rd vpn export ${ROUTER_ID}:2
         rt vpn both ${BGP_AS}:2
         export vpn

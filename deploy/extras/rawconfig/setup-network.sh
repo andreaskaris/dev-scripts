@@ -47,6 +47,7 @@ VRF_TABLE="${VRF_TABLE:-1100}"
 L2_VNI="${L2_VNI:-210}"
 VXLAN_PORT="${VXLAN_PORT:-4789}"
 L2_GATEWAY_IP="${L2_GATEWAY_IP:-192.168.110.1/24}"
+L2_GATEWAY_IP_V6="${L2_GATEWAY_IP_V6:-fd00:110::1/64}"
 VTEP_IP="${VTEP_IP}"
 VTEP_INTERFACE="${VTEP_INTERFACE:-lo}"
 
@@ -170,6 +171,18 @@ else
     log "  Gateway IP $L2_GATEWAY_IP assigned to bridge"
 fi
 
+if [[ -n "${L2_GATEWAY_IP_V6}" ]]; then
+    if infrr ip -6 addr show "$L2_BRIDGE" | grep -q "${L2_GATEWAY_IP_V6%/*}"; then
+        log "  IPv6 gateway IP already assigned"
+    else
+        infrr ip -6 addr add "$L2_GATEWAY_IP_V6" dev "$L2_BRIDGE" || {
+            error "Failed to assign IPv6 gateway IP to bridge"
+            exit 1
+        }
+        log "  IPv6 gateway IP $L2_GATEWAY_IP_V6 assigned to bridge"
+    fi
+fi
+
 #
 # STEP 4: Create L2VNI VXLAN interface in FRR namespace
 #
@@ -264,7 +277,7 @@ log ""
 log "Summary:"
 log "  VRF: $VRF_NAME (table $VRF_TABLE)"
 log "  L2VNI: Bridge=$L2_BRIDGE, VXLAN=$L2_VXLAN, VNI=$L2_VNI"
-log "  L2 Gateway IP: $L2_GATEWAY_IP"
+log "  L2 Gateway IP: $L2_GATEWAY_IP (v6: ${L2_GATEWAY_IP_V6:-none})"
 log "  Veth pair: $HOST_VETH (on br0) <-> $PE_VETH (on $L2_BRIDGE)"
 log "  VTEP IP: $VTEP_IP"
 log "  L3VPN: handled by SRv6 (no L3VNI VXLAN)"

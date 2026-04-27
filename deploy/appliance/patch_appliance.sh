@@ -89,13 +89,17 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
         cp "${EXTRASDIR}/quadlets/${f}" "${staging}/"
     done
 
+    # Stage daemons file for FRR container
+    cp "${EXTRASDIR}/quadlets/daemons" "${staging}/"
+
     if [[ -n "${USE_RAW:-}" ]]; then
         # Stage rawconfig scripts
         for f in openperouter-common.sh setup-underlay.sh setup-network.sh generate-config.sh; do
             cp "${EXTRASDIR}/rawconfig/${f}" "${staging}/"
         done
-        # Stage rawconfig template and env
+        # Stage rawconfig templates and env
         cp "${EXTRASDIR}/rawconfig/openpe_evpn.yaml.template" "${staging}/"
+        cp "${EXTRASDIR}/rawconfig/openpe_evpn.yaml_rr.template" "${staging}/"
         cp "${EXTRASDIR}/rawconfig/vpn-setup.env" "${staging}/"
         # Stage node-index and shared installer patching scripts
         cp "${EXTRASDIR}/common/openperouter-node-index.sh" "${staging}/"
@@ -119,6 +123,14 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
 "
     done
 
+    # FRR daemons file -> /etc/perouter/daemons
+    bu_files+="    - path: /etc/perouter/daemons
+      mode: 0644
+      overwrite: true
+      contents:
+        local: daemons
+"
+
     if [[ -n "${USE_RAW:-}" ]]; then
         # Rawconfig scripts -> /usr/local/bin/ (executable)
         for f in openperouter-common.sh setup-underlay.sh setup-network.sh generate-config.sh \
@@ -131,12 +143,18 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
 "
         done
 
-        # Rawconfig template -> /etc/openperouter/templates/
+        # Rawconfig templates -> /etc/openperouter/templates/
         bu_files+="    - path: /etc/openperouter/templates/openpe_evpn.yaml.template
       mode: 0644
       overwrite: true
       contents:
         local: openpe_evpn.yaml.template
+"
+        bu_files+="    - path: /etc/openperouter/templates/openpe_evpn.yaml_rr.template
+      mode: 0644
+      overwrite: true
+      contents:
+        local: openpe_evpn.yaml_rr.template
 "
 
         # Rawconfig env -> /etc/openperouter/

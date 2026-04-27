@@ -178,7 +178,6 @@ router bgp ${BGP_AS} vrf ${VRF_NAME}
  !
  address-family ipv4 unicast
   network ${VRF_LO_V4}
-  redistribute connected
   rd vpn export ${ROUTER_ID}:2
   rt vpn both ${BGP_AS}:2
   export vpn
@@ -187,7 +186,6 @@ router bgp ${BGP_AS} vrf ${VRF_NAME}
  !
  address-family ipv6 unicast
   network ${VRF_LO_V6}
-  redistribute connected
   rd vpn export ${ROUTER_ID}:2
   rt vpn both ${BGP_AS}:2
   export vpn

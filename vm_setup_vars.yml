@@ -104,4 +104,12 @@ external_network:
         - domain: "apps.{{ cluster_domain }}"
           addr: "127.0.0.1"
 
-networks: "{{ provisioning_network + external_network + (extra_networks | default([])) if not lookup('env', 'BOND_PRIMARY_INTERFACE') else provisioning_network + external_network + external_network + (extra_networks | default([])) }}"
+extra_networks: >-
+  {%- set nets = [] -%}
+  {%- for net_name in (lookup('env', 'EXTRA_NETWORK_NAMES') | default('', true)).split() -%}
+  {%-   set subnet_v4 = lookup('env', net_name | upper + '_NETWORK_SUBNET_V4') | default('', true) -%}
+  {%-   set _ = nets.append({'name': net_name, 'bridge': net_name, 'forward_mode': 'nat', 'address_v4': subnet_v4 | nthhost(1) | default('', true), 'netmask_v4': subnet_v4 | ipaddr('netmask') | default('', true), 'dhcp_range_v4': [subnet_v4 | nthhost(20), subnet_v4 | nthhost(60)], 'lease_expiry': lookup('env', 'DHCP_LEASE_EXPIRY')}) -%}
+  {%- endfor -%}
+  {{ nets }}
+
+networks: "{{ provisioning_network + external_network + extra_networks if not lookup('env', 'BOND_PRIMARY_INTERFACE') else provisioning_network + external_network + external_network + extra_networks }}"

@@ -150,7 +150,25 @@ SRV6_PREFIX="fd00:${LAST_OCTET}::/48"
 UNDERLAY_V6="fc00:100::${LAST_OCTET}"
 ISIS_NET="${ISIS_AREA}.0000.0000.$(printf '%04d' "${LAST_OCTET}").00"
 
-log "Bridge interface: $BRIDGE_IFACE, IP: $BR0_IP"
+BR0_IP_V6=""
+BR0_V6_ELAPSED=0
+while [[ -z "$BR0_IP_V6" ]]; do
+    BR0_IP_V6=$(ip -6 addr show "$BRIDGE_IFACE" scope global | grep -oP '(?<=inet6\s)[0-9a-f:]+' | head -1 || true)
+    if [[ -n "$BR0_IP_V6" ]]; then
+        break
+    fi
+    if [ $BR0_V6_ELAPSED -ge $BR0_READY_TIMEOUT ]; then
+        log "WARNING: No IPv6 address on $BRIDGE_IFACE after ${BR0_READY_TIMEOUT}s — continuing without it"
+        break
+    fi
+    if [ $((BR0_V6_ELAPSED % 10)) -eq 0 ] && [ $BR0_V6_ELAPSED -gt 0 ]; then
+        log "Waiting for bridge IPv6 address... (${BR0_V6_ELAPSED}s elapsed)"
+    fi
+    sleep $BR0_INTERVAL
+    BR0_V6_ELAPSED=$((BR0_V6_ELAPSED + BR0_INTERVAL))
+done
+
+log "Bridge interface: $BRIDGE_IFACE, IP: $BR0_IP, IPv6: ${BR0_IP_V6:-none}"
 log "Node index (last octet): $LAST_OCTET"
 log "  Router ID / VTEP IP: $ROUTER_ID"
 log "  Loopback IPv6:       $LOOPBACK_V6"
@@ -277,6 +295,7 @@ LAST_OCTET="$LAST_OCTET"
 ROUTER_ID="$ROUTER_ID"
 VTEP_IP="$VTEP_IP"
 BR0_IP="$BR0_IP"
+BR0_IP_V6="${BR0_IP_V6:-}"
 
 # IPv6 loopback for BGP peering
 LOOPBACK_V6="$LOOPBACK_V6"

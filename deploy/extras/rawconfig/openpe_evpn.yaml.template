@@ -6,7 +6,7 @@
 # Variables:
 #   ${NODE_NAME}, ${UNDERLAY_NIC}, ${BGP_AS}, ${ROUTER_ID}
 #   ${LOOPBACK_V6}, ${SRV6_SOURCE}, ${SRV6_PREFIX}, ${ISIS_NET}
-#   ${VRF_NAME}, ${BR0_IP}, ${RR_LOOPBACK}
+#   ${VRF_NAME}, ${BR0_IP}, ${BR0_IP_V6}, ${RR_LOOPBACK}
 
 rawfrrconfigs:
   - priority: 100
@@ -66,7 +66,6 @@ rawfrrconfigs:
        !
        address-family ipv4 unicast
         network ${BR0_IP}/32
-        redistribute connected
         rd vpn export ${ROUTER_ID}:2
         rt vpn both ${BGP_AS}:2
         export vpn
@@ -74,7 +73,7 @@ rawfrrconfigs:
        exit-address-family
        !
        address-family ipv6 unicast
-        redistribute connected
+        network ${BR0_IP_V6}/128
         rd vpn export ${ROUTER_ID}:2
         rt vpn both ${BGP_AS}:2
         export vpn
