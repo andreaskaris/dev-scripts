@@ -23,9 +23,7 @@ export BASE_DOMAIN="example.com"
 # --- AGENT-BASED INSTALLER ---
 export AGENT_E2E_TEST_SCENARIO="HA_IPV4V6"
 export AGENT_E2E_TEST_BOOT_MODE="APPLIANCE_ISO"
-export OPENSHIFT_VERSION=4.20.16
-export OPENSHIFT_RELEASE_STREAM=4.20
-export OPENSHIFT_RELEASE_TYPE="ga"
+export OPENSHIFT_RELEASE_IMAGE="quay.io/mavazque/ocp-release@sha256:ceb09eda89368cbfa0624941a2eeec806bcfcf3c96f41247edd96a0cd7de32c9"
 
 # --- NETWORKING ---
 export IP_STACK="v4v6"
@@ -59,7 +57,12 @@ export IGNITION_EXTRA="${PWD}/ignition-password.ign"
 # Resolve api.CLUSTER_DOMAIN to the bridge IP so it's reachable from VRF context
 export OPENPE_BRIDGE_IP="192.168.110.2"
 
-# --- OPENPEROUTER ---
+# --- CUSTOM KERNEL (pre-built appliance ISO with patched kernel) ---
+# This ISO must be the output of prepare_appliance.sh (fully patched)
+export APPLIANCE_ISO_PATH="${PWD}/deploy/appliance/appliance.iso"
+
+# --- OPENPEROUTER (rawconfig mode: ISIS + SRv6) ---
+export USE_RAW=1
 # Pre-load OpenPERouter container images into the appliance disk
 #export APPLIANCE_ADDITIONAL_IMAGES="quay.io/openperouter/router:main"
 export APPLIANCE_ADDITIONAL_IMAGES="quay.io/fpaoline/router:dev5,quay.io/mavazque/ign-converter:latest"

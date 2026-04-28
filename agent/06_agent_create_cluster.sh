@@ -721,14 +721,21 @@ case "${AGENT_E2E_TEST_BOOT_MODE}" in
     sudo rm -rf "${OCP_DIR}/temp"
     ;;
   "APPLIANCE_ISO" )
-    # Build live ISO using openshift-appliance (includes additionalImages)
-    create_appliance_liveiso ${asset_dir}
-
-    # Embed OpenPERouter quadlets, configs, and registry mirrors into the
-    # appliance ISO ignition (first-boot customization).
     appliance_iso="${OCP_DIR}/appliance.iso"
-    if [[ -x "${SCRIPTDIR}/deploy/appliance/patch_appliance.sh" ]]; then
-        "${SCRIPTDIR}/deploy/appliance/patch_appliance.sh" "${appliance_iso}" "${OCP_DIR}"
+
+    if [[ -n "${APPLIANCE_ISO_PATH:-}" ]]; then
+        # Use pre-built ISO (already patched by prepare_appliance.sh)
+        echo "Using pre-built appliance ISO: ${APPLIANCE_ISO_PATH}"
+        sudo cp "${APPLIANCE_ISO_PATH}" "${appliance_iso}"
+    else
+        # Build live ISO using openshift-appliance (includes additionalImages)
+        create_appliance_liveiso ${asset_dir}
+
+        # Embed OpenPERouter quadlets, configs, registry mirrors, and SSH key
+        # into the appliance ISO ignition (first-boot customization).
+        if [[ -x "${SCRIPTDIR}/deploy/appliance/patch_appliance.sh" ]]; then
+            "${SCRIPTDIR}/deploy/appliance/patch_appliance.sh" "${appliance_iso}" "${OCP_DIR}"
+        fi
     fi
 
     # Create the config ISO
