@@ -101,32 +101,46 @@ for i, host in enumerate(cfg['hosts']):
     # Fix NIC name
     host['interfaces'][0]['name'] = '${NIC_NAME}'
 
-    # Extract existing NIC IP from the networkConfig (set by 05_agent_configure.sh)
+    # Extract existing NIC IPs from the networkConfig (set by 05_agent_configure.sh)
     nic_ip = None
+    nic_ip_v6 = None
+    nic_prefix_v6 = 120
     if 'networkConfig' in host:
         for iface in host['networkConfig'].get('interfaces', []):
             if iface.get('type') == 'ethernet' and iface.get('ipv4', {}).get('address'):
                 nic_ip = iface['ipv4']['address'][0]['ip']
+                v6_addrs = iface.get('ipv6', {}).get('address', [])
+                if v6_addrs:
+                    nic_ip_v6 = v6_addrs[0]['ip']
+                    nic_prefix_v6 = v6_addrs[0].get('prefix-length', 120)
                 break
     if nic_ip is None:
         print(f'ERROR: Could not extract NIC IP for host {i}', file=sys.stderr)
         sys.exit(1)
 
-    print(f'  Host {i}: MAC={mac}  NIC_IP={nic_ip}  Bridge_IP={bridge_ip}  Bridge_IPv6={bridge_ip_v6}  Extra_NIC_IP={extra_nic_ip}')
+    print(f'  Host {i}: MAC={mac}  NIC_IP={nic_ip}  NIC_IPv6={nic_ip_v6}  Bridge_IP={bridge_ip}  Bridge_IPv6={bridge_ip_v6}  Extra_NIC_IP={extra_nic_ip}')
+
+    nic_entry = {
+        'name': '${NIC_NAME}',
+        'type': 'ethernet',
+        'state': 'up',
+        'mac-address': mac,
+        'ipv4': {
+            'enabled': True,
+            'address': [{'ip': nic_ip, 'prefix-length': ${NIC_PREFIX}}],
+            'dhcp': False,
+        },
+    }
+    if nic_ip_v6:
+        nic_entry['ipv6'] = {
+            'enabled': True,
+            'address': [{'ip': nic_ip_v6, 'prefix-length': nic_prefix_v6}],
+            'dhcp': False,
+        }
 
     host['networkConfig'] = {
         'interfaces': [
-            {
-                'name': '${NIC_NAME}',
-                'type': 'ethernet',
-                'state': 'up',
-                'mac-address': mac,
-                'ipv4': {
-                    'enabled': True,
-                    'address': [{'ip': nic_ip, 'prefix-length': ${NIC_PREFIX}}],
-                    'dhcp': False,
-                },
-            },
+            nic_entry,
             {
                 'name': '${PROV_NIC_NAME}',
                 'type': 'ethernet',
