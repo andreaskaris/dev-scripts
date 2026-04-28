@@ -213,8 +213,10 @@ if [[ -d "${EXTRASDIR}/quadlets" ]]; then
       contents: |
         [Unit]
         Description=OpenPERouter Configuration Generator
-        After=setup-underlay.service
-        Requires=setup-underlay.service
+        # Must run after setup-network to avoid kernel NULL deref in vrf_ifindex_lookup_by_table_id
+        # when zebra installs SRv6 End.DT routes before the VRF exists (kernel 5.14, RHCOS 9.6)
+        After=setup-network.service
+        Requires=setup-network.service
         [Service]
         Type=oneshot
         RemainAfterExit=yes
@@ -335,6 +337,13 @@ else
     {
         echo "variant: fcos"
         echo "version: 1.5.0"
+        if [[ -n "${SSH_PUB_KEY:-}" ]]; then
+            echo "passwd:"
+            echo "  users:"
+            echo "    - name: core"
+            echo "      ssh_authorized_keys:"
+            echo "        - \"${SSH_PUB_KEY}\""
+        fi
         if [[ -n "${bu_files}" ]]; then
             echo "storage:"
             echo "  files:"
@@ -363,6 +372,10 @@ else
         if ($new.systemd.units // [] | length) > 0 then
             .systemd = (.systemd // {}) |
             .systemd.units = ((.systemd.units // []) + ($new.systemd.units // []))
+        else . end |
+        if ($new.passwd.users // [] | length) > 0 then
+            .passwd = (.passwd // {}) |
+            .passwd.users = ((.passwd.users // []) + ($new.passwd.users // []))
         else . end
     ' "${tmpdir}/original.ign" "${tmpdir}/additions.ign" > "${tmpdir}/merged.ign"
 

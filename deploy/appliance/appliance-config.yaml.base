@@ -1,8 +1,8 @@
 apiVersion: v1beta1
 kind: ApplianceConfig
 ocpRelease:
-  version: "4.20"
-  url: quay.io/openshift-release-dev/ocp-release@sha256:5e2fb7977a82237e497443e2bb53fd1c196e083fc5095294699399b61ce02746
+  version: '4.20'
+  url: quay.io/mavazque/ocp-release:4.20.12-x86_64-kernel-5.14.0-570.76.1.5114_2224397254
 diskSizeGB: 200
 userCorePass: core
 stopLocalRegistry: false
