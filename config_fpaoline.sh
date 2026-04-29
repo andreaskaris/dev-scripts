@@ -37,6 +37,7 @@ export EXTRA_NETWORK_NAMES="external"
 export EXTERNAL_NETWORK_SUBNET_V4='192.168.150.0/24'
 
 # --- NODES ---
+export NUM_WORKERS=0
 
 # --- VM RESOURCES ---
 export MASTER_MEMORY=32768
