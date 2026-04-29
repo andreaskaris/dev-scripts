@@ -36,7 +36,7 @@ VRF_LO_V6="${VRF_LO_V6:-fc00:10:20::1/128}"
 VRF_NAME="red"
 VRF_TABLE=1100
 
-VTEP_LO="lo-vtep"
+VTEP_LO="lo-und"
 LO_NAME="lo-extra"
 LO_IP="${LO_IP:-10.100.0.1/32}"
 DNS_LISTEN_IP="${DNS_LISTEN_IP:-10.100.0.1}"
@@ -89,6 +89,9 @@ sudo sysctl -w net.ipv6.conf.all.seg6_enabled=1 >/dev/null 2>&1 || true
 sudo sysctl -w net.ipv6.conf.default.seg6_enabled=1 >/dev/null 2>&1 || true
 sudo sysctl -w "net.ipv6.conf.${ISIS_IFACE}.seg6_enabled=1" >/dev/null 2>&1 || true
 sudo sysctl -w net.ipv6.conf.lo.seg6_enabled=1 >/dev/null 2>&1 || true
+sudo sysctl -w net.vrf.strict_mode=1 >/dev/null 2>&1 || true
+sudo sysctl -w net.ipv4.conf.all.rp_filter=0 >/dev/null 2>&1 || true
+sudo sysctl -w net.ipv4.conf.default.rp_filter=0 >/dev/null 2>&1 || true
 
 # --- VRF ---
 echo "Creating VRF ${VRF_NAME} (table ${VRF_TABLE})..."
@@ -99,6 +102,23 @@ else
     sudo ip link set "${VRF_NAME}" up
     sudo firewall-cmd --zone=trusted --add-interface="${VRF_NAME}" 2>/dev/null || true
 fi
+
+# --- Bypass conntrack for VRF traffic (firewalld drops ct state invalid) ---
+echo "Adding nftables notrack rules for VRF ${VRF_NAME}..."
+sudo nft -f - <<NFT
+table inet srv6-vrf-notrack
+delete table inet srv6-vrf-notrack
+table inet srv6-vrf-notrack {
+    chain prerouting {
+        type filter hook prerouting priority raw; policy accept;
+        iifname "${VRF_NAME}" notrack
+    }
+    chain output {
+        type filter hook output priority raw; policy accept;
+        oifname "${VRF_NAME}" notrack
+    }
+}
+NFT
 
 # --- VRF loopback (lored) ---
 echo "Creating VRF loopback 'lored'..."
@@ -142,6 +162,12 @@ exit
 interface lo
  ip router isis PE
  ipv6 router isis PE
+exit
+!
+interface ${VTEP_LO}
+ ip router isis PE
+ ipv6 router isis PE
+ isis passive
 exit
 !
 router bgp ${BGP_AS}
@@ -200,7 +226,6 @@ router isis PE
  lsp-gen-interval 2
  log-adjacency-changes
  log-pdu-drops
- segment-routing on
  segment-routing srv6
   locator MAIN
  exit
