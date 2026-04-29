@@ -93,7 +93,6 @@ rawfrrconfigs:
        lsp-gen-interval 2
        log-adjacency-changes
        log-pdu-drops
-       segment-routing on
        segment-routing srv6
         locator MAIN
        exit
