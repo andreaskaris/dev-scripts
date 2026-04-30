@@ -62,6 +62,25 @@ echo "==> Building appliance live ISO..."
 
 asset_dir="$(realpath "${SCRIPTDIR}")"
 
+# OCPBUGS-84696 (Apr 2026) removed --ignore-release-signature from the
+# appliance's oc-mirror invocation, breaking custom/unsigned release images.
+# Work around by bind-mounting a wrapper over /usr/local/bin/oc that re-adds
+# the flag for "oc mirror" subcommands.
+oc_wrapper_dir="$(mktemp -d)"
+
+sudo podman create --name=tmp-appliance-oc "${APPLIANCE_IMAGE}" true 2>/dev/null
+sudo podman cp tmp-appliance-oc:/usr/local/bin/oc "${oc_wrapper_dir}/oc.real"
+sudo podman rm tmp-appliance-oc >/dev/null
+
+cat > "${oc_wrapper_dir}/oc" <<'WRAPPER'
+#!/bin/bash
+if [[ "${1:-}" == "mirror" ]]; then
+    exec /usr/local/bin/oc.real "$@" --ignore-release-signature
+fi
+exec /usr/local/bin/oc.real "$@"
+WRAPPER
+chmod +x "${oc_wrapper_dir}/oc"
+
 # Clean any previous build so the appliance tool doesn't skip
 sudo podman run -it --rm --privileged --net=host \
     -v "${asset_dir}:/assets:Z" \
@@ -69,7 +88,11 @@ sudo podman run -it --rm --privileged --net=host \
 
 sudo podman run -it --rm --pull newer --privileged --net=host \
     -v "${asset_dir}:/assets:Z" \
+    -v "${oc_wrapper_dir}/oc:/usr/local/bin/oc:Z" \
+    -v "${oc_wrapper_dir}/oc.real:/usr/local/bin/oc.real:Z" \
     "${APPLIANCE_IMAGE}" build live-iso --log-level=debug
+
+rm -rf "${oc_wrapper_dir}"
 
 appliance_iso="${asset_dir}/appliance.iso"
 

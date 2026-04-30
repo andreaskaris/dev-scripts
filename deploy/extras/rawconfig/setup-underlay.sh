@@ -268,12 +268,8 @@ inns sysctl -w net.ipv6.conf.default.seg6_enabled=1 || true
 inns sysctl -w "net.ipv6.conf.${UNDERLAY_NIC}.seg6_enabled=1" || true
 inns sysctl -w net.ipv6.conf.lo.seg6_enabled=1 || true
 
-# VRF strict mode (required for SRv6 End.DT46 seg6local routes)
-inns sysctl -w net.vrf.strict_mode=1 || true
-
-# Disable rp_filter (required for SRv6 End.DT46 decapsulation into VRF)
-inns sysctl -w net.ipv4.conf.all.rp_filter=0 || true
-inns sysctl -w net.ipv4.conf.default.rp_filter=0 || true
+# NOTE: vrf.strict_mode and rp_filter are set in setup-network.sh
+# (after VRF creation, so the kernel module is loaded)
 
 # IP forwarding
 inns sysctl -w net.ipv4.ip_forward=1 || true

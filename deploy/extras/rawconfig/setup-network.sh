@@ -101,14 +101,6 @@ else
 fi
 
 #
-# STEP 0c: VRF strict mode
-#
-log "Step 0c: Enabling VRF strict mode"
-infrr sysctl -w net.vrf.strict_mode=1 2>/dev/null || {
-    log "  WARNING: VRF strict mode not available"
-}
-
-#
 # STEP 1: Create VRF in FRR namespace
 #
 log "Step 1: Creating VRF '$VRF_NAME' (table $VRF_TABLE)"
@@ -126,6 +118,15 @@ else
     }
     log "  VRF '$VRF_NAME' created successfully"
 fi
+
+# VRF strict mode (must be after VRF creation so the kernel module is loaded)
+infrr sysctl -w net.vrf.strict_mode=1 2>/dev/null || {
+    log "  WARNING: VRF strict mode not available"
+}
+# Disable rp_filter for SRv6 decapsulation
+infrr sysctl -w net.ipv4.conf.all.rp_filter=0 2>/dev/null || true
+infrr sysctl -w net.ipv4.conf.default.rp_filter=0 2>/dev/null || true
+infrr sysctl -w "net.ipv4.conf.${VRF_NAME}.rp_filter=0" 2>/dev/null || true
 
 #
 # STEP 2: Create L2VNI bridge in FRR namespace

@@ -102,6 +102,7 @@ else
     sudo ip link set "${VRF_NAME}" up
     sudo firewall-cmd --zone=trusted --add-interface="${VRF_NAME}" 2>/dev/null || true
 fi
+sudo sysctl -w "net.ipv4.conf.${VRF_NAME}.rp_filter=0" >/dev/null 2>&1 || true
 
 # --- Bypass conntrack for VRF traffic (firewalld drops ct state invalid) ---
 echo "Adding nftables notrack rules for VRF ${VRF_NAME}..."
