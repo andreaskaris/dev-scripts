@@ -8,15 +8,15 @@ if [ -z "$BIGGEST_ROM" ]; then
 fi
 
 DEVICE_PATH="/dev/$BIGGEST_ROM"
-MOUNT_POINT="/media/iso"
+MOUNT_POINT="/run/media/iso"
 
 echo "Largest device found: $DEVICE_PATH"
 
 if [ ! -d "$MOUNT_POINT" ]; then
-    sudo mkdir -p "$MOUNT_POINT"
+    mkdir -p "$MOUNT_POINT"
 fi
 
 echo "Setting up systemd-automount for $DEVICE_PATH at $MOUNT_POINT..."
-sudo systemd-mount --automount=yes --collect "$DEVICE_PATH" "$MOUNT_POINT"
+systemd-mount --automount=yes --collect "$DEVICE_PATH" "$MOUNT_POINT"
 
 echo "Done. Access $MOUNT_POINT to trigger the mount."

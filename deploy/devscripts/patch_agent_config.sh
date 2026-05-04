@@ -51,7 +51,7 @@ EXTRA_NIC_START_OCTET="20"
 DNS_SERVER="${DNS_SERVER:-192.168.111.1}"
 
 # NTP server reachable during agent discovery phase (host's baremetal IP)
-NTP_SERVER="${NTP_SERVER:-192.168.111.1}"
+NTP_SERVER="${NTP_SERVER:-10.100.0.1}"
 
 if [ ! -f "${AGENT_CONFIG}" ]; then
   echo "ERROR: ${AGENT_CONFIG} not found. Run agent/05_agent_configure.sh first."
