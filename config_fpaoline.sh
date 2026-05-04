@@ -21,7 +21,7 @@ export CLUSTER_NAME="sno-lab"
 export BASE_DOMAIN="example.com"
 
 # --- AGENT-BASED INSTALLER ---
-export AGENT_E2E_TEST_SCENARIO="HA_IPV4V6"
+export AGENT_E2E_TEST_SCENARIO="COMPACT_IPV4V6"
 export AGENT_E2E_TEST_BOOT_MODE="APPLIANCE_ISO"
 export OPENSHIFT_RELEASE_IMAGE="quay.io/mavazque/ocp-release@sha256:ceb09eda89368cbfa0624941a2eeec806bcfcf3c96f41247edd96a0cd7de32c9"
 

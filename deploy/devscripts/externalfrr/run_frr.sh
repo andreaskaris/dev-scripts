@@ -205,6 +205,7 @@ router bgp ${BGP_AS} vrf ${VRF_NAME}
  !
  address-family ipv4 unicast
   network ${VRF_LO_V4}
+  network ${LO_IP}
   rd vpn export ${ROUTER_ID}:2
   rt vpn both ${BGP_AS}:2
   export vpn
@@ -329,6 +330,32 @@ DNSEOF
 else
     echo "Skipping DNS server (set API_VIP and INGRESS_VIP to enable)."
 fi
+
+# --- NTP server in VRF red ---
+CHRONY_CONF="${FRR_CONF_DIR}/chrony-vrf.conf"
+CHRONY_PID="/run/chronyd-vrf.pid"
+
+echo "Setting up NTP server in VRF ${VRF_NAME} on ${DNS_LISTEN_IP}..."
+
+for pid in $(pgrep -f "chronyd.*chrony-vrf" 2>/dev/null); do
+    echo "  Killing existing chronyd (PID ${pid})..."
+    sudo kill "${pid}" 2>/dev/null || true
+done
+sudo rm -f "${CHRONY_PID}"
+sleep 1
+
+cat > "${CHRONY_CONF}" <<NTPEOF
+local stratum 3 orphan
+allow all
+bindaddress ${DNS_LISTEN_IP}
+port 123
+driftfile /var/run/chrony-vrf.drift
+pidfile ${CHRONY_PID}
+NTPEOF
+
+sudo ip vrf exec "${VRF_NAME}" chronyd -f "${CHRONY_CONF}" -x
+
+echo "NTP server running at ${DNS_LISTEN_IP} in VRF ${VRF_NAME}."
 
 echo ""
 echo "FRR is running. Useful commands:"
