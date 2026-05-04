@@ -3,26 +3,32 @@ metadata:
   name: sno-lab
   namespace: cluster0
 additionalNTPSources:
-- 192.168.111.1
+- 10.100.0.1
 rendezvousIP: 192.168.110.2
 hosts:
 - hostname: master-0
   interfaces:
   - name: enp2s0
-    macAddress: 00:90:68:a2:7a:91
+    macAddress: 00:d8:d8:4b:0d:1b
   - name: eth1
-    macAddress: 00:90:68:a2:7a:92
+    macAddress: 00:d8:d8:4b:0d:1c
   networkConfig:
     interfaces:
     - name: enp2s0
       type: ethernet
       state: up
-      mac-address: 00:90:68:a2:7a:91
+      mac-address: 00:d8:d8:4b:0d:1b
       ipv4:
         enabled: true
         address:
         - ip: 192.168.111.80
           prefix-length: 24
+        dhcp: false
+      ipv6:
+        enabled: true
+        address:
+        - ip: fd2e:6f44:5dd8:c956::50
+          prefix-length: 120
         dhcp: false
     - name: enp1s0
       type: ethernet
@@ -35,7 +41,11 @@ hosts:
       type: ethernet
       state: up
       ipv4:
-        enabled: false
+        enabled: true
+        address:
+        - ip: 192.168.150.20
+          prefix-length: 24
+        dhcp: false
       ipv6:
         enabled: false
     - name: dummy0
@@ -54,6 +64,12 @@ hosts:
         - ip: 192.168.110.2
           prefix-length: 24
         dhcp: false
+      ipv6:
+        enabled: true
+        address:
+        - ip: fd00:110::2
+          prefix-length: 64
+        dhcp: false
       bridge:
         port:
         - name: dummy0
@@ -61,29 +77,40 @@ hosts:
       config:
         server:
         - 192.168.110.1
+        - fd00:110::1
     routes:
       config:
       - destination: 0.0.0.0/0
         next-hop-address: 192.168.110.1
         next-hop-interface: br0
         table-id: 254
+      - destination: ::/0
+        next-hop-address: fd00:110::1
+        next-hop-interface: br0
+        table-id: 254
 - hostname: master-1
   interfaces:
   - name: enp2s0
-    macAddress: 00:90:68:a2:7a:94
+    macAddress: 00:d8:d8:4b:0d:1e
   - name: eth1
-    macAddress: 00:90:68:a2:7a:95
+    macAddress: 00:d8:d8:4b:0d:1f
   networkConfig:
     interfaces:
     - name: enp2s0
       type: ethernet
       state: up
-      mac-address: 00:90:68:a2:7a:94
+      mac-address: 00:d8:d8:4b:0d:1e
       ipv4:
         enabled: true
         address:
         - ip: 192.168.111.81
           prefix-length: 24
+        dhcp: false
+      ipv6:
+        enabled: true
+        address:
+        - ip: fd2e:6f44:5dd8:c956::51
+          prefix-length: 120
         dhcp: false
     - name: enp1s0
       type: ethernet
@@ -96,7 +123,11 @@ hosts:
       type: ethernet
       state: up
       ipv4:
-        enabled: false
+        enabled: true
+        address:
+        - ip: 192.168.150.21
+          prefix-length: 24
+        dhcp: false
       ipv6:
         enabled: false
     - name: dummy0
@@ -115,6 +146,12 @@ hosts:
         - ip: 192.168.110.3
           prefix-length: 24
         dhcp: false
+      ipv6:
+        enabled: true
+        address:
+        - ip: fd00:110::3
+          prefix-length: 64
+        dhcp: false
       bridge:
         port:
         - name: dummy0
@@ -122,29 +159,40 @@ hosts:
       config:
         server:
         - 192.168.110.1
+        - fd00:110::1
     routes:
       config:
       - destination: 0.0.0.0/0
         next-hop-address: 192.168.110.1
         next-hop-interface: br0
         table-id: 254
+      - destination: ::/0
+        next-hop-address: fd00:110::1
+        next-hop-interface: br0
+        table-id: 254
 - hostname: master-2
   interfaces:
   - name: enp2s0
-    macAddress: 00:90:68:a2:7a:97
+    macAddress: 00:d8:d8:4b:0d:21
   - name: eth1
-    macAddress: 00:90:68:a2:7a:98
+    macAddress: 00:d8:d8:4b:0d:22
   networkConfig:
     interfaces:
     - name: enp2s0
       type: ethernet
       state: up
-      mac-address: 00:90:68:a2:7a:97
+      mac-address: 00:d8:d8:4b:0d:21
       ipv4:
         enabled: true
         address:
         - ip: 192.168.111.82
           prefix-length: 24
+        dhcp: false
+      ipv6:
+        enabled: true
+        address:
+        - ip: fd2e:6f44:5dd8:c956::52
+          prefix-length: 120
         dhcp: false
     - name: enp1s0
       type: ethernet
@@ -157,7 +205,11 @@ hosts:
       type: ethernet
       state: up
       ipv4:
-        enabled: false
+        enabled: true
+        address:
+        - ip: 192.168.150.22
+          prefix-length: 24
+        dhcp: false
       ipv6:
         enabled: false
     - name: dummy0
@@ -176,6 +228,12 @@ hosts:
         - ip: 192.168.110.4
           prefix-length: 24
         dhcp: false
+      ipv6:
+        enabled: true
+        address:
+        - ip: fd00:110::4
+          prefix-length: 64
+        dhcp: false
       bridge:
         port:
         - name: dummy0
@@ -183,9 +241,14 @@ hosts:
       config:
         server:
         - 192.168.110.1
+        - fd00:110::1
     routes:
       config:
       - destination: 0.0.0.0/0
         next-hop-address: 192.168.110.1
+        next-hop-interface: br0
+        table-id: 254
+      - destination: ::/0
+        next-hop-address: fd00:110::1
         next-hop-interface: br0
         table-id: 254
