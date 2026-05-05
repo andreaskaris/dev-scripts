@@ -18,7 +18,7 @@ set -euo pipefail
 # Load environment variables with defaults
 BGP_AS="${BGP_AS:-65500}"
 RR_NODE_IDX="${RR_NODE_IDX:-2}"
-EXTERNAL_PEER_LOOPBACK="${EXTERNAL_PEER_LOOPBACK:-fc00:0:20::1}"
+TOR_LOOPBACK="${TOR_LOOPBACK:-fc00:0:20::1}"
 VRF_NAME="${VRF_NAME:-red}"
 L2_VNI="${L2_VNI:-210}"
 L2_GATEWAY_IP="${L2_GATEWAY_IP:-192.168.110.1/24}"
@@ -98,10 +98,8 @@ if [[ "$LAST_OCTET" == "$RR_NODE_IDX" ]]; then
         fi
     done
     export EVPN_CLIENT_1 EVPN_CLIENT_2
-    export EXTERNAL_PEER_LOOPBACK
 
     log "  Clients: $EVPN_CLIENT_1, $EVPN_CLIENT_2"
-    log "  External: $EXTERNAL_PEER_LOOPBACK"
 else
     log "This node is an EVPN/VPN client (idx=$LAST_OCTET, RR=$RR_NODE_IDX)"
     CONFIG_TEMPLATE="${TEMPLATE_DIR}/openpe_evpn.yaml.template"
@@ -111,6 +109,9 @@ else
 
     log "  RR loopback: $RR_LOOPBACK"
 fi
+
+export TOR_LOOPBACK
+log "  TOR: $TOR_LOOPBACK"
 
 #
 # STEP 3: Verify template exists

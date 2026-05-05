@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run an external FRR instance as a remotepe with ISIS + SRv6 + iBGP.
-# Peers with master-0 (the EVPN/VPN route reflector) for L3VPN via SRv6.
+# Run an external FRR instance as a TOR with ISIS + SRv6 + iBGP.
+# Peers with all PE nodes for L3VPN (ipv4/ipv6 vpn) via SRv6.
 # No L2 EVPN / VXLAN — this node does L3VPN only.
 #
 # Creates:
@@ -21,7 +21,7 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISIS_IFACE="${ISIS_IFACE:-sno-labbm}"
 
 BGP_AS="${BGP_AS:-65500}"
-RR_LOOPBACK="${RR_LOOPBACK:-fc00:0:2::1}"
+IFS=' ' read -ra PE_INDICES <<< "${PE_INDICES:-2 3 4}"
 
 # Addressing — fixed IPs for external FRR remotepe
 ROUTER_ID="${ROUTER_ID:-10.0.0.20}"
@@ -59,7 +59,7 @@ echo "  SRv6 source:    ${SRV6_SOURCE}"
 echo "  SRv6 prefix:    ${SRV6_PREFIX}"
 echo "  ISIS NET:       ${ISIS_NET}"
 echo "  BGP AS:         ${BGP_AS}"
-echo "  RR loopback:    ${RR_LOOPBACK}"
+echo "  PE indices:     ${PE_INDICES[*]}"
 echo "  VRF:            ${VRF_NAME} (table ${VRF_TABLE})"
 echo "  FRR image:      ${FRR_IMAGE}"
 echo ""
@@ -144,6 +144,13 @@ else
     sudo ip link set "${LO_NAME}" up
 fi
 
+# --- Build PE neighbor lines ---
+PE_NEIGHBOR_LINES=""
+for idx in "${PE_INDICES[@]}"; do
+    PE_NEIGHBOR_LINES+=" neighbor fc00:0:${idx}::1 peer-group PE-NODES
+"
+done
+
 # --- Generate FRR configuration ---
 mkdir -p "${FRR_CONF_DIR}"
 
@@ -178,21 +185,20 @@ router bgp ${BGP_AS}
  no bgp network import-check
  bgp log-neighbor-changes
  !
- neighbor RR peer-group
- neighbor RR remote-as ${BGP_AS}
- neighbor RR update-source ${LOOPBACK_V6}
- neighbor ${RR_LOOPBACK} peer-group RR
- !
+ neighbor PE-NODES peer-group
+ neighbor PE-NODES remote-as ${BGP_AS}
+ neighbor PE-NODES update-source ${LOOPBACK_V6}
+${PE_NEIGHBOR_LINES} !
  segment-routing srv6
   locator MAIN
  exit
  !
  address-family ipv4 vpn
-  neighbor RR activate
+  neighbor PE-NODES activate
  exit-address-family
  !
  address-family ipv6 vpn
-  neighbor RR activate
+  neighbor PE-NODES activate
  exit-address-family
 exit
 !

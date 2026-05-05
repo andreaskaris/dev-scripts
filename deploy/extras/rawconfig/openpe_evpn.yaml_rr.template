@@ -1,15 +1,17 @@
 # OpenPERouter FRR Configuration Template — EVPN Route Reflector (ISIS + SRv6)
 # Rendered by generate-config.sh using envsubst
 #
-# This node acts as the EVPN/VPN route reflector for all other PEs.
+# Peering model:
+#   - TOR (direct):     ipv4 vpn + ipv6 vpn + l2vpn evpn  (SRv6 routes + EVPN)
+#   - EVPN-CLIENTS:     l2vpn evpn only (reflected)
 #
 # Variables:
 #   ${NODE_NAME}, ${UNDERLAY_NIC}, ${BGP_AS}, ${ROUTER_ID}
 #   ${LOOPBACK_V6}, ${SRV6_SOURCE}, ${SRV6_PREFIX}, ${ISIS_NET}
 #   ${VRF_NAME}, ${BR0_IP}, ${BR0_IP_V6}
+#   ${TOR_LOOPBACK}
 #   ${EVPN_CLIENT_1}         - First client PE IPv6 loopback
 #   ${EVPN_CLIENT_2}         - Second client PE IPv6 loopback
-#   ${EXTERNAL_PEER_LOOPBACK} - External FRR (remotepe) IPv6 loopback
 
 rawfrrconfigs:
   - priority: 100
@@ -36,28 +38,31 @@ rawfrrconfigs:
        no bgp network import-check
        bgp log-neighbor-changes
        !
+       neighbor TOR peer-group
+       neighbor TOR remote-as ${BGP_AS}
+       neighbor TOR update-source ${LOOPBACK_V6}
+       neighbor ${TOR_LOOPBACK} peer-group TOR
+       !
        neighbor EVPN-CLIENTS peer-group
        neighbor EVPN-CLIENTS remote-as ${BGP_AS}
        neighbor EVPN-CLIENTS update-source ${LOOPBACK_V6}
        neighbor ${EVPN_CLIENT_1} peer-group EVPN-CLIENTS
        neighbor ${EVPN_CLIENT_2} peer-group EVPN-CLIENTS
-       neighbor ${EXTERNAL_PEER_LOOPBACK} peer-group EVPN-CLIENTS
        !
        segment-routing srv6
         locator MAIN
        exit
        !
        address-family ipv4 vpn
-        neighbor EVPN-CLIENTS activate
-        neighbor EVPN-CLIENTS route-reflector-client
+        neighbor TOR activate
        exit-address-family
        !
        address-family ipv6 vpn
-        neighbor EVPN-CLIENTS activate
-        neighbor EVPN-CLIENTS route-reflector-client
+        neighbor TOR activate
        exit-address-family
        !
        address-family l2vpn evpn
+        neighbor TOR activate
         neighbor EVPN-CLIENTS activate
         neighbor EVPN-CLIENTS route-reflector-client
         advertise-all-vni
