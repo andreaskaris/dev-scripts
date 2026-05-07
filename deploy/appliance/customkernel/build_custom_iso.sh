@@ -1,12 +1,11 @@
 #!/bin/bash
 # build_custom_iso.sh - Build a custom RHCOS live ISO with patched kernel RPMs
-# using CoreOS Assembler (cosa), then place it in the appliance cache and update
-# the appliance config to use a custom release payload.
+# using CoreOS Assembler (cosa).
 #
-# Usage: build_custom_iso.sh <custom_release_image>
+# Usage: build_custom_iso.sh [ocp_version]
 #
-#   custom_release_image  The custom OCP release image URL containing the
-#                         patched rhel-coreos (e.g. quay.io/mavazque/ocp-release:4.20.12-x86_64-kernel-...)
+#   ocp_version  OCP version for cache directory naming (e.g. 4.20.12).
+#                Optional — if omitted, the ISO is placed in appliance/cache/.
 #
 # Prerequisites:
 #   - Connected to Red Hat VPN
@@ -15,7 +14,8 @@
 #
 # The script builds the RHCOS ISO under customkernel/rhcos-build/ (persistent
 # for caching) and copies the result to appliance/cache/coreos-x86_64.iso.
-# ./build_custom_iso.sh quay.io/mavazque/ocp-release:4.20.12-x86_64-kernel-5.14.0-570.76.1.5114_2224397254
+# The ociarchive produced by cosa build is then consumed by
+# build_custom_release.sh to create the custom release payload.
 
 set -euo pipefail
 
@@ -29,13 +29,7 @@ COREOS_CONFIG_REPO="https://github.com/coreos/rhel-coreos-config.git"
 RPM_DIR="${SCRIPTDIR}/5.14.0-570.76.1.5114_2224397254.el9_6.x86_64"
 BUILD_DIR="${SCRIPTDIR}/rhcos-build"
 
-custom_release_image="${1:-}"
-
-if [[ -z "${custom_release_image}" ]]; then
-    echo "Usage: build_custom_iso.sh <custom_release_image>"
-    echo "  e.g. build_custom_iso.sh quay.io/mavazque/ocp-release:4.20.12-x86_64-kernel-5.14.0-570.76.1.5114_2224397254"
-    exit 1
-fi
+ocp_version="${1:-}"
 
 if [[ ! -d "${RPM_DIR}" ]]; then
     echo "ERROR: Kernel RPM directory not found: ${RPM_DIR}"
@@ -122,7 +116,7 @@ echo "==> Running cosa fetch..."
 cosa fetch
 
 echo "==> Running cosa build..."
-cosa build --version "$(date +%Y%m%d).custom"
+cosa build --version "$(date +%Y%m%d).0.custom"
 
 echo "==> Building live ISO..."
 cosa osbuild live
@@ -139,7 +133,6 @@ fi
 
 echo "==> Custom RHCOS ISO built: ${iso_path}"
 
-ocp_version=$(echo "${custom_release_image}" | grep -oP ':\K[0-9]+\.[0-9]+\.[0-9]+' || true)
 arch="x86_64"
 if [[ -n "${ocp_version}" ]]; then
     cache_dir="${APPLIANCE_DIR}/cache/${ocp_version}-${arch}"
@@ -150,19 +143,4 @@ sudo mkdir -p "${cache_dir}"
 sudo cp "${iso_path}" "${cache_dir}/coreos-x86_64.iso"
 
 echo "==> Copied ISO to ${cache_dir}/coreos-x86_64.iso"
-
-# ============================================================
-# Step 5: Update appliance config with custom release image
-# ============================================================
-base_config="${APPLIANCE_DIR}/appliance-config.yaml.base"
-
-if [[ ! -f "${base_config}" ]]; then
-    echo "ERROR: Appliance base config not found: ${base_config}"
-    exit 1
-fi
-
-yq -y ".ocpRelease.url = \"${custom_release_image}\"" "${base_config}" > "${base_config}.tmp" \
-    && mv "${base_config}.tmp" "${base_config}"
-
-echo "==> Updated ${base_config} with ocpRelease.url: ${custom_release_image}"
-echo "==> Done! Run generate_appliance.sh to build the appliance with the custom kernel."
+echo "==> Done! Run build_custom_release.sh next to build the custom OCP release payload."
