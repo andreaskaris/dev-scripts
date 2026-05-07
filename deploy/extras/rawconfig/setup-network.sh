@@ -23,15 +23,6 @@ fi
 
 source "$SCRIPT_DIR/openperouter-common.sh"
 
-# Logging functions
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
-}
-
-error() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2
-}
-
 # Load variables from setup-underlay.sh if available
 VARS_FILE="${VARS_FILE:-/var/lib/openperouter/vpn-setup.vars}"
 if [[ -f "$VARS_FILE" ]]; then

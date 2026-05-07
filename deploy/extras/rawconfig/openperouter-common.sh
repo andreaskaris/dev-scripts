@@ -6,6 +6,36 @@
 # These functions are meant to be run on the node where podman runs
 # the frr container (e.g. inside a kind node).
 
+# Logging functions
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+}
+
+error() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2
+}
+
+log_step() {
+    local step="$1"
+    log "=== Step: $step ==="
+}
+
+exit_success() {
+    log "${1:-Operation completed successfully}"
+    exit 0
+}
+
+exit_error() {
+    local msg="$1"
+    error "$msg"
+    exit 1
+}
+
+exit_timeout() {
+    error "Operation timed out"
+    exit 124
+}
+
 _FRR_PID_CACHE=""
 
 # frr_netns_pid returns the PID of the frr container, which shares

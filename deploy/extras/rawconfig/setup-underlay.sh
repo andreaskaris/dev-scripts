@@ -44,36 +44,6 @@ ISIS_AREA="${ISIS_AREA:-49.0001}"
 # Output file for variables
 VARS_FILE="${VARS_FILE:-/var/lib/openperouter/vpn-setup.vars}"
 
-# Logging functions
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
-}
-
-error() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2
-}
-
-log_step() {
-    local step="$1"
-    log "=== Step: $step ==="
-}
-
-exit_success() {
-    log "Underlay setup completed successfully"
-    exit 0
-}
-
-exit_error() {
-    local msg="$1"
-    error "$msg"
-    exit 1
-}
-
-exit_timeout() {
-    error "Operation timed out"
-    exit 124
-}
-
 # Start main execution
 log "Starting underlay setup (ISIS + SRv6 mode)"
 log "Configuration: UNDERLAY_NIC=$UNDERLAY_NIC, NODE_NAME=$NODE_NAME"
@@ -322,4 +292,4 @@ chmod 644 "$VARS_FILE"
 
 log "Variables saved to $VARS_FILE"
 
-exit_success
+exit_success "Underlay setup completed successfully"

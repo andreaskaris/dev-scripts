@@ -15,6 +15,16 @@ set -euo pipefail
 #   0   - Success
 #   1   - General error
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source common utilities
+if [[ ! -f "$SCRIPT_DIR/openperouter-common.sh" ]]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: openperouter-common.sh not found" >&2
+    exit 1
+fi
+
+source "$SCRIPT_DIR/openperouter-common.sh"
+
 # Load environment variables with defaults
 BGP_AS="${BGP_AS:-65500}"
 RR_NODE_IDX="${RR_NODE_IDX:-2}"
@@ -32,31 +42,6 @@ IFS=' ' read -ra MASTER_INDICES <<< "${MASTER_INDICES:-2 3 4}"
 VARS_FILE="${VARS_FILE:-/var/lib/openperouter/vpn-setup.vars}"
 TEMPLATE_DIR="${TEMPLATE_DIR:-/etc/openperouter/templates}"
 CONFIG_OUTPUT="${CONFIG_OUTPUT:-/var/lib/openperouter/configs/openpe_evpn.yaml}"
-
-# Logging functions
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
-}
-
-error() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2
-}
-
-log_step() {
-    local step="$1"
-    log "=== Step: $step ==="
-}
-
-exit_success() {
-    log "Configuration generation completed successfully"
-    exit 0
-}
-
-exit_error() {
-    local msg="$1"
-    error "$msg"
-    exit 1
-}
 
 # Start main execution
 log "Starting configuration generation (ISIS + SRv6 mode)"
@@ -168,4 +153,4 @@ log "Configuration preview (first 30 lines):"
 head -30 "$CONFIG_OUTPUT" | while IFS= read -r line; do log "  $line"; done
 log "  ..."
 
-exit_success
+exit_success "Configuration generation completed successfully"
