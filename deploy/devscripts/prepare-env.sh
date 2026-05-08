@@ -47,11 +47,7 @@ deploy/devscripts/patch_agent_config.sh
 # ============================================================
 MANIFESTS_DIR="${WORKING_DIR}/ocp/${CLUSTER_NAME}/openshift"
 
-if [[ -n "${USE_RAW:-}" ]]; then
-    CONFIG_IMAGE_DIR="config-image-raw"
-else
-    CONFIG_IMAGE_DIR="config-image-openpe"
-fi
+CONFIG_IMAGE_DIR="config-image-raw"
 
 echo "==> Generating MachineConfig manifests into ${MANIFESTS_DIR} (mode: ${CONFIG_IMAGE_DIR})..."
 ./deploy/${CONFIG_IMAGE_DIR}/generate_machineconfigs.sh "${MANIFESTS_DIR}"
