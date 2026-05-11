@@ -2,7 +2,7 @@
 # Rendered by generate-config.sh using envsubst
 #
 # Peering model:
-#   - TOR (direct):     ipv4 vpn + ipv6 vpn + l2vpn evpn  (SRv6 routes + EVPN)
+#   - TOR (direct):     ipv4 vpn + ipv6 vpn  (SRv6 routes only)
 #   - EVPN-CLIENTS:     l2vpn evpn only (reflected)
 #
 # Variables:
@@ -62,7 +62,6 @@ rawfrrconfigs:
        exit-address-family
        !
        address-family l2vpn evpn
-        neighbor TOR activate
         neighbor EVPN-CLIENTS activate
         neighbor EVPN-CLIENTS route-reflector-client
         advertise-all-vni
