@@ -14,6 +14,33 @@ hosts:
     macAddress: 00:d8:d8:4b:0d:1c
   networkConfig:
     interfaces:
+    - name: br0
+      type: linux-bridge
+      state: up
+      ipv4:
+        enabled: true
+        auto-dns: false
+        address:
+        - ip: 192.168.110.2
+          prefix-length: 24
+        dhcp: false
+      ipv6:
+        enabled: true
+        auto-dns: false
+        address:
+        - ip: fd00:110::2
+          prefix-length: 64
+        dhcp: false
+      bridge:
+        port:
+        - name: dummy0
+    - name: dummy0
+      type: dummy
+      state: up
+      ipv4:
+        enabled: false
+      ipv6:
+        enabled: false
     - name: enp2s0
       type: ethernet
       state: up
@@ -48,31 +75,6 @@ hosts:
         dhcp: false
       ipv6:
         enabled: false
-    - name: dummy0
-      type: dummy
-      state: up
-      ipv4:
-        enabled: false
-      ipv6:
-        enabled: false
-    - name: br0
-      type: linux-bridge
-      state: up
-      ipv4:
-        enabled: true
-        address:
-        - ip: 192.168.110.2
-          prefix-length: 24
-        dhcp: false
-      ipv6:
-        enabled: true
-        address:
-        - ip: fd00:110::2
-          prefix-length: 64
-        dhcp: false
-      bridge:
-        port:
-        - name: dummy0
     dns-resolver:
       config:
         server:
@@ -96,6 +98,33 @@ hosts:
     macAddress: 00:d8:d8:4b:0d:1f
   networkConfig:
     interfaces:
+    - name: br0
+      type: linux-bridge
+      state: up
+      ipv4:
+        enabled: true
+        auto-dns: false
+        address:
+        - ip: 192.168.110.3
+          prefix-length: 24
+        dhcp: false
+      ipv6:
+        enabled: true
+        auto-dns: false
+        address:
+        - ip: fd00:110::3
+          prefix-length: 64
+        dhcp: false
+      bridge:
+        port:
+        - name: dummy0
+    - name: dummy0
+      type: dummy
+      state: up
+      ipv4:
+        enabled: false
+      ipv6:
+        enabled: false
     - name: enp2s0
       type: ethernet
       state: up
@@ -130,31 +159,6 @@ hosts:
         dhcp: false
       ipv6:
         enabled: false
-    - name: dummy0
-      type: dummy
-      state: up
-      ipv4:
-        enabled: false
-      ipv6:
-        enabled: false
-    - name: br0
-      type: linux-bridge
-      state: up
-      ipv4:
-        enabled: true
-        address:
-        - ip: 192.168.110.3
-          prefix-length: 24
-        dhcp: false
-      ipv6:
-        enabled: true
-        address:
-        - ip: fd00:110::3
-          prefix-length: 64
-        dhcp: false
-      bridge:
-        port:
-        - name: dummy0
     dns-resolver:
       config:
         server:
@@ -178,6 +182,33 @@ hosts:
     macAddress: 00:d8:d8:4b:0d:22
   networkConfig:
     interfaces:
+    - name: br0
+      type: linux-bridge
+      state: up
+      ipv4:
+        enabled: true
+        auto-dns: false
+        address:
+        - ip: 192.168.110.4
+          prefix-length: 24
+        dhcp: false
+      ipv6:
+        enabled: true
+        auto-dns: false
+        address:
+        - ip: fd00:110::4
+          prefix-length: 64
+        dhcp: false
+      bridge:
+        port:
+        - name: dummy0
+    - name: dummy0
+      type: dummy
+      state: up
+      ipv4:
+        enabled: false
+      ipv6:
+        enabled: false
     - name: enp2s0
       type: ethernet
       state: up
@@ -212,31 +243,6 @@ hosts:
         dhcp: false
       ipv6:
         enabled: false
-    - name: dummy0
-      type: dummy
-      state: up
-      ipv4:
-        enabled: false
-      ipv6:
-        enabled: false
-    - name: br0
-      type: linux-bridge
-      state: up
-      ipv4:
-        enabled: true
-        address:
-        - ip: 192.168.110.4
-          prefix-length: 24
-        dhcp: false
-      ipv6:
-        enabled: true
-        address:
-        - ip: fd00:110::4
-          prefix-length: 64
-        dhcp: false
-      bridge:
-        port:
-        - name: dummy0
     dns-resolver:
       config:
         server:
