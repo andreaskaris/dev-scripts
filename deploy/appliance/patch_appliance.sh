@@ -46,15 +46,6 @@ trap 'rm -rf "${tmpdir}"' EXIT
 butane --raw --strict --files-dir="${EXTRASDIR}" "${RAWCONFIG_BU}" \
     > "${tmpdir}/openperouter.ign"
 
-# Compile dns.bu → ignition (if present)
-DNS_BU="${EXTRASDIR}/dns/dns.bu"
-if [[ -f "${DNS_BU}" ]]; then
-    echo "==> Compiling dns.bu..."
-    butane --raw --strict --files-dir="${EXTRASDIR}" "${DNS_BU}" \
-        > "${tmpdir}/dns.ign"
-else
-    echo '{"ignition":{"version":"3.4.0"}}' > "${tmpdir}/dns.ign"
-fi
 
 # ============================================================
 # Step 2: Build extras ignition (registry mirrors, SSH key)
@@ -146,19 +137,19 @@ echo "==> Merging ignition into appliance ISO..."
 sudo coreos-installer iso ignition show "${appliance_iso}" > "${tmpdir}/original.ign" 2>/dev/null \
     || echo '{"ignition":{"version":"3.4.0"}}' > "${tmpdir}/original.ign"
 
-# Merge: original + openperouter + dns + extras
+# Merge: original + openperouter + extras
 jq -s '
-    .[0] as $orig | .[1] as $ope | .[2] as $dns | .[3] as $ext |
+    .[0] as $orig | .[1] as $ope | .[2] as $ext |
     $orig |
     .storage = (.storage // {}) |
-    .storage.files = ((.storage.files // []) + ($ope.storage.files // []) + ($dns.storage.files // []) + ($ext.storage.files // [])) |
+    .storage.files = ((.storage.files // []) + ($ope.storage.files // []) + ($ext.storage.files // [])) |
     .systemd = (.systemd // {}) |
-    .systemd.units = ((.systemd.units // []) + ($ope.systemd.units // []) + ($dns.systemd.units // []) + ($ext.systemd.units // [])) |
+    .systemd.units = ((.systemd.units // []) + ($ope.systemd.units // []) + ($ext.systemd.units // [])) |
     if ($ext.passwd.users // [] | length) > 0 then
         .passwd = (.passwd // {}) |
         .passwd.users = ((.passwd.users // []) + ($ext.passwd.users // []))
     else . end
-' "${tmpdir}/original.ign" "${tmpdir}/openperouter.ign" "${tmpdir}/dns.ign" "${extras_ign}" \
+' "${tmpdir}/original.ign" "${tmpdir}/openperouter.ign" "${extras_ign}" \
     > "${tmpdir}/merged.ign"
 
 # Embed merged ignition into ISO
