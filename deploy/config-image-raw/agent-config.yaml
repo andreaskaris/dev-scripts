@@ -9,9 +9,9 @@ hosts:
 - hostname: master-0
   interfaces:
   - name: enp2s0
-    macAddress: 00:d8:d8:4b:0d:1b
+    macAddress: 00:06:8f:36:2e:75
   - name: eth1
-    macAddress: 00:d8:d8:4b:0d:1c
+    macAddress: 00:06:8f:36:2e:76
   networkConfig:
     interfaces:
     - name: br0
@@ -44,7 +44,7 @@ hosts:
     - name: enp2s0
       type: ethernet
       state: up
-      mac-address: 00:d8:d8:4b:0d:1b
+      mac-address: 00:06:8f:36:2e:75
       ipv4:
         enabled: true
         address:
@@ -93,9 +93,9 @@ hosts:
 - hostname: master-1
   interfaces:
   - name: enp2s0
-    macAddress: 00:d8:d8:4b:0d:1e
+    macAddress: 00:06:8f:36:2e:78
   - name: eth1
-    macAddress: 00:d8:d8:4b:0d:1f
+    macAddress: 00:06:8f:36:2e:79
   networkConfig:
     interfaces:
     - name: br0
@@ -128,7 +128,7 @@ hosts:
     - name: enp2s0
       type: ethernet
       state: up
-      mac-address: 00:d8:d8:4b:0d:1e
+      mac-address: 00:06:8f:36:2e:78
       ipv4:
         enabled: true
         address:
@@ -177,9 +177,9 @@ hosts:
 - hostname: master-2
   interfaces:
   - name: enp2s0
-    macAddress: 00:d8:d8:4b:0d:21
+    macAddress: 00:06:8f:36:2e:7b
   - name: eth1
-    macAddress: 00:d8:d8:4b:0d:22
+    macAddress: 00:06:8f:36:2e:7c
   networkConfig:
     interfaces:
     - name: br0
@@ -212,7 +212,7 @@ hosts:
     - name: enp2s0
       type: ethernet
       state: up
-      mac-address: 00:d8:d8:4b:0d:21
+      mac-address: 00:06:8f:36:2e:7b
       ipv4:
         enabled: true
         address:

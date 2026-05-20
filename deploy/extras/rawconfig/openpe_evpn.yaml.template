@@ -8,7 +8,7 @@
 # Variables:
 #   ${NODE_NAME}, ${UNDERLAY_NIC}, ${BGP_AS}, ${ROUTER_ID}
 #   ${LOOPBACK_V6}, ${SRV6_SOURCE}, ${SRV6_PREFIX}, ${ISIS_NET}
-#   ${VRF_NAME}, ${BR0_IP}, ${BR0_IP_V6}
+#   ${VRF_NAME}, ${BR0_IP}, ${BR0_IP_V6}, ${BR0_SUBNET}, ${BR0_SUBNET_V6}
 #   ${TOR_LOOPBACK}, ${RR_LOOPBACK}
 
 rawfrrconfigs:
@@ -73,7 +73,7 @@ rawfrrconfigs:
        sid vpn per-vrf export auto
        !
        address-family ipv4 unicast
-        network ${BR0_IP}/32
+        network ${BR0_SUBNET}
         rd vpn export ${ROUTER_ID}:2
         rt vpn both ${BGP_AS}:2
         export vpn
@@ -81,7 +81,7 @@ rawfrrconfigs:
        exit-address-family
        !
        address-family ipv6 unicast
-        network ${BR0_IP_V6}/128
+        network ${BR0_SUBNET_V6}
         rd vpn export ${ROUTER_ID}:2
         rt vpn both ${BGP_AS}:2
         export vpn

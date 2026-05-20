@@ -264,3 +264,11 @@ cache-size=0
 EOF
 sudo systemctl reload NetworkManager
 echo "Reloaded NetworkManager dnsmasq."
+
+# Add /etc/hosts entries so "ip vrf exec red kubectl" can resolve the API.
+# The host dnsmasq runs in the default namespace and is unreachable from VRF red,
+# so DNS lookups via 127.0.0.1:53 time out. /etc/hosts bypasses DNS entirely.
+HOSTS_MARKER="# openshift-${CLUSTER_NAME}"
+sudo sed -i "/${HOSTS_MARKER}/d" /etc/hosts
+echo "${API_VIP} api.${CLUSTER_DOMAIN} api-int.${CLUSTER_DOMAIN} ${HOSTS_MARKER}" | sudo tee -a /etc/hosts
+echo "Added /etc/hosts entries for api.${CLUSTER_DOMAIN}"

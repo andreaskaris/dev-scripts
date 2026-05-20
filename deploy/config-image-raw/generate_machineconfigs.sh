@@ -29,12 +29,6 @@ if [[ -f "${SCRIPTDIR}/openperouter-raw.bu" ]]; then
         -o "${output_dir}/99-master-openperouter.yaml"
 fi
 
-if [[ -f "${EXTRASDIR}/dns/dns.bu" ]]; then
-    echo "  dns/dns.bu -> 02-master-dns-hack.yaml"
-    butane --files-dir="${EXTRASDIR}" "${EXTRASDIR}/dns/dns.bu" \
-        -o "${output_dir}/02-master-dns-hack.yaml"
-fi
-
 if [[ -f "${SCRIPTDIR}/registry.bu" ]]; then
     echo "  registry.bu -> 01-master-registry.yaml"
     butane --files-dir="${EXTRASDIR}" "${SCRIPTDIR}/registry.bu" \

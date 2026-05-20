@@ -269,6 +269,8 @@ ROUTER_ID="$ROUTER_ID"
 VTEP_IP="$VTEP_IP"
 BR0_IP="$BR0_IP"
 BR0_IP_V6="${BR0_IP_V6:-}"
+BR0_SUBNET="${BR0_IP%.*}.0/24"
+BR0_SUBNET_V6="$(echo "$BR0_IP_V6" | sed 's/:[^:]*$//' | sed 's/:*$//')::/64"
 
 # IPv6 loopback for BGP peering
 LOOPBACK_V6="$LOOPBACK_V6"
