@@ -21,7 +21,7 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISIS_IFACE="${ISIS_IFACE:-sno-labbm}"
 
 BGP_AS="${BGP_AS:-65500}"
-IFS=' ' read -ra PE_INDICES <<< "${PE_INDICES:-2 3 4}"
+IFS=' ' read -ra PE_INDICES <<< "${PE_INDICES:-2 3 4 5 6}"
 
 # Addressing — fixed IPs for external FRR remotepe
 ROUTER_ID="${ROUTER_ID:-10.0.0.20}"
@@ -75,10 +75,17 @@ fi
 sudo ip addr add "${ROUTER_ID}/32" dev "${VTEP_LO}" 2>/dev/null || true
 sudo ip -6 addr add "${LOOPBACK_V6}/128" dev "${VTEP_LO}" 2>/dev/null || true
 sudo ip -6 addr add "${SRV6_SOURCE}/128" dev "${VTEP_LO}" 2>/dev/null || true
+sudo sysctl -w "net.ipv4.conf.${VTEP_LO}.rp_filter=0" >/dev/null
 
 # --- Underlay IPv6 on ISIS interface ---
 echo "Adding underlay IPv6 ${UNDERLAY_V6}/64 to ${ISIS_IFACE}..."
 sudo ip -6 addr add "${UNDERLAY_V6}/64" dev "${ISIS_IFACE}" 2>/dev/null || true
+sudo sysctl -w "net.ipv4.conf.${ISIS_IFACE}.rp_filter=0" >/dev/null
+
+# --- VRF strict mode (must be set BEFORE creating any VRF) ---
+# seg6local End.DT46 with vrftable requires strict_mode=1
+echo "Enabling VRF strict mode..."
+sudo sysctl -w net.vrf.strict_mode=1 >/dev/null
 
 # --- SRv6 sysctls ---
 echo "Setting SRv6 sysctls..."
@@ -89,7 +96,6 @@ sudo sysctl -w net.ipv6.conf.all.seg6_enabled=1 >/dev/null 2>&1 || true
 sudo sysctl -w net.ipv6.conf.default.seg6_enabled=1 >/dev/null 2>&1 || true
 sudo sysctl -w "net.ipv6.conf.${ISIS_IFACE}.seg6_enabled=1" >/dev/null 2>&1 || true
 sudo sysctl -w net.ipv6.conf.lo.seg6_enabled=1 >/dev/null 2>&1 || true
-sudo sysctl -w net.vrf.strict_mode=1 >/dev/null 2>&1 || true
 sudo sysctl -w net.ipv4.conf.all.rp_filter=0 >/dev/null 2>&1 || true
 sudo sysctl -w net.ipv4.conf.default.rp_filter=0 >/dev/null 2>&1 || true
 
@@ -132,6 +138,7 @@ else
 fi
 sudo ip addr add "${VRF_LO_V4}" dev lored 2>/dev/null || true
 sudo ip -6 addr add "${VRF_LO_V6}" dev lored 2>/dev/null || true
+sudo sysctl -w net.ipv4.conf.lored.rp_filter=0 >/dev/null
 
 # --- Extra loopback for DNS ---
 echo "Creating loopback ${LO_NAME} with ${LO_IP}..."
@@ -143,6 +150,7 @@ else
     sudo ip addr add "${LO_IP}" dev "${LO_NAME}"
     sudo ip link set "${LO_NAME}" up
 fi
+sudo sysctl -w "net.ipv4.conf.${LO_NAME}.rp_filter=0" >/dev/null
 
 # --- Build PE neighbor lines ---
 PE_NEIGHBOR_LINES=""
