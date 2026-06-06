@@ -10,8 +10,7 @@
 #   ${LOOPBACK_V6}, ${SRV6_SOURCE}, ${SRV6_PREFIX}, ${ISIS_NET}
 #   ${VRF_NAME}, ${BR0_IP}, ${BR0_IP_V6}, ${BR0_SUBNET}, ${BR0_SUBNET_V6}
 #   ${TOR_LOOPBACK}
-#   ${EVPN_CLIENT_1}         - First client PE IPv6 loopback
-#   ${EVPN_CLIENT_2}         - Second client PE IPv6 loopback
+#   ${EVPN_LISTEN_RANGE}     - IPv6 prefix for dynamic EVPN client peers
 
 rawfrrconfigs:
   - priority: 100
@@ -46,8 +45,7 @@ rawfrrconfigs:
        neighbor EVPN-CLIENTS peer-group
        neighbor EVPN-CLIENTS remote-as ${BGP_AS}
        neighbor EVPN-CLIENTS update-source ${LOOPBACK_V6}
-       neighbor ${EVPN_CLIENT_1} peer-group EVPN-CLIENTS
-       neighbor ${EVPN_CLIENT_2} peer-group EVPN-CLIENTS
+       bgp listen range ${EVPN_LISTEN_RANGE} peer-group EVPN-CLIENTS
        !
        segment-routing srv6
         locator MAIN

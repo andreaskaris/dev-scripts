@@ -74,17 +74,10 @@ if [[ "$LAST_OCTET" == "$RR_NODE_IDX" ]]; then
     log "This node is the EVPN/VPN Route Reflector (idx=$LAST_OCTET)"
     CONFIG_TEMPLATE="${TEMPLATE_DIR}/openpe_evpn.yaml_rr.template"
 
-    # Compute client peer loopbacks (all masters except this one)
-    CLIENT_IDX=0
-    for idx in "${MASTER_INDICES[@]}"; do
-        if [[ "$idx" != "$LAST_OCTET" ]]; then
-            CLIENT_IDX=$((CLIENT_IDX + 1))
-            declare "EVPN_CLIENT_${CLIENT_IDX}=fc00:0:${idx}::1"
-        fi
-    done
-    export EVPN_CLIENT_1 EVPN_CLIENT_2
+    EVPN_LISTEN_RANGE="${EVPN_LISTEN_RANGE:-fc00::/16}"
+    export EVPN_LISTEN_RANGE
 
-    log "  Clients: $EVPN_CLIENT_1, $EVPN_CLIENT_2"
+    log "  EVPN listen range: $EVPN_LISTEN_RANGE"
 else
     log "This node is an EVPN/VPN client (idx=$LAST_OCTET, RR=$RR_NODE_IDX)"
     CONFIG_TEMPLATE="${TEMPLATE_DIR}/openpe_evpn.yaml.template"
