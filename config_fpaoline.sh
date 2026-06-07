@@ -21,7 +21,7 @@ export CLUSTER_NAME="sno-lab"
 export BASE_DOMAIN="example.com"
 
 # --- AGENT-BASED INSTALLER ---
-export AGENT_E2E_TEST_SCENARIO="COMPACT_IPV4V6"
+export AGENT_E2E_TEST_SCENARIO="HA_IPV4V6"
 export AGENT_E2E_TEST_BOOT_MODE="APPLIANCE_ISO"
 export OPENSHIFT_RELEASE_IMAGE="quay.io/fpaoline/ocp-release@sha256:256a3a02518bb901ba8407a02eb848c2b4fe2b3ce095c5a39086c7b45537d669"
 
@@ -37,7 +37,7 @@ export EXTRA_NETWORK_NAMES="external"
 export EXTERNAL_NETWORK_SUBNET_V4='192.168.150.0/24'
 
 # --- NODES ---
-export NUM_WORKERS=0
+# NUM_WORKERS is set by HA scenario (default: 2)
 
 # --- VM RESOURCES ---
 export MASTER_MEMORY=32768

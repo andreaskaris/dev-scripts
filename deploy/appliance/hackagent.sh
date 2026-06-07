@@ -53,10 +53,11 @@ else
     exit 1
 fi
 
-# Wait for the local master ignition file to be created
-log "Waiting for local master ignition file in $LOCAL_IGN_DIR..."
+# Wait for a local ignition file (master or worker) to be created.
+# The agent installer creates /opt/install-dir/ minutes after boot.
+log "Waiting for local ignition file in $LOCAL_IGN_DIR..."
 while true; do
-    LOCAL_IGN_FILE=$(find "$LOCAL_IGN_DIR" -maxdepth 1 -name 'master-*.ign' -type f 2>/dev/null | head -1)
+    LOCAL_IGN_FILE=$(find "$LOCAL_IGN_DIR" -maxdepth 1 \( -name 'master-*.ign' -o -name 'worker-*.ign' \) -type f 2>/dev/null | head -1)
 
     if [ -n "$LOCAL_IGN_FILE" ]; then
         log "Found local ignition file: $LOCAL_IGN_FILE"
@@ -65,6 +66,25 @@ while true; do
 
     sleep 1
 done
+
+# Detect role from filename
+case "$LOCAL_IGN_FILE" in
+    *worker*) NODE_ROLE="worker" ;;
+    *)        NODE_ROLE="master" ;;
+esac
+
+# Workers: block reboot until we've baked in the MCS config,
+# and use the API VIP (production MCS) instead of rendezvous IP
+if [ "$NODE_ROLE" = "worker" ]; then
+    log "Worker detected — masking reboot.target to prevent premature reboot"
+    systemctl mask reboot.target
+    URL="https://192.168.110.10:22623/config/${NODE_ROLE}"
+else
+    URL="https://192.168.110.2:22623/config/${NODE_ROLE}"
+fi
+
+IGN_FILE="/tmp/${NODE_ROLE}-mcs-server.ign"
+log "Detected node role: $NODE_ROLE (MCS URL: $URL)"
 
 # Extract ignition version from local file
 IGN_VERSION=$(jq -r '.ignition.version' "$LOCAL_IGN_FILE")
@@ -83,20 +103,24 @@ else
     log "Found hostname configuration in local ignition file"
 fi
 
-# Poll URL until MCS is accessible
-log "Waiting for $URL to become accessible..."
+# Poll URL until MCS returns a valid ignition response
+log "Waiting for valid ignition from $URL..."
 while true; do
     if curl -k -s --connect-timeout 1 --max-time 5 -o "$IGN_FILE" "$URL"; then
-        log "URL is accessible, saved ignition file to $IGN_FILE"
-        break
+        if [ -s "$IGN_FILE" ] && jq -e '.ignition.version' "$IGN_FILE" >/dev/null 2>&1; then
+            log "Got valid ignition file from MCS ($(wc -c < "$IGN_FILE") bytes)"
+            break
+        else
+            rm -f "$IGN_FILE"
+        fi
     fi
     sleep 1
 done
 
 # Convert downloaded ignition from v2 to v3
 log "Converting downloaded ignition file to spec v3..."
-if podman run --privileged --rm -v /tmp:/tmp "$CONVERTER_IMAGE" -input "/tmp/master-mcs-server.ign" -output "/tmp/master-mcs-server-v3.ign" 2>&1 | tee -a "$LOG_FILE"; then
-    mv /tmp/master-mcs-server-v3.ign /tmp/master-mcs-server.ign
+if podman run --privileged --rm -v /tmp:/tmp "$CONVERTER_IMAGE" -input "$IGN_FILE" -output "${IGN_FILE%.ign}-v3.ign" 2>&1 | tee -a "$LOG_FILE"; then
+    mv "${IGN_FILE%.ign}-v3.ign" "$IGN_FILE"
     log "Successfully converted ignition to v3"
 else
     log "ERROR: Failed to convert ignition file to v3"
@@ -141,7 +165,7 @@ log "Original arguments: $ARGS"
 DISK=$(echo "$ARGS" | grep -oP '/dev/\S+')
 log "Target disk: $DISK"
 
-TRANSFORMED_ARGS=$(echo "$ARGS" | sed 's|-i [^ ]*|-i /tmp/master-mcs-server.ign|')
+TRANSFORMED_ARGS=$(echo "$ARGS" | sed "s|-i [^ ]*|-i $IGN_FILE|")
 TRANSFORMED_ARGS=$(echo "$TRANSFORMED_ARGS" | sed 's/^install //')
 
 COREOS_CMD="coreos-installer install $TRANSFORMED_ARGS"
@@ -152,6 +176,13 @@ cp /etc/resolv.conf /tmp/resolv.conf.bk
 
 log "Writing nameserver to /etc/resolv.conf"
 echo 'nameserver 169.254.0.1' > /etc/resolv.conf
+
+# Validate ignition before wiping disk
+if ! jq -e '.ignition.version' "$IGN_FILE" >/dev/null 2>&1; then
+    log "ERROR: Ignition file is invalid, aborting before disk wipe"
+    cp /tmp/resolv.conf.bk /etc/resolv.conf
+    exit 1
+fi
 
 log "Wiping filesystem signatures from $DISK"
 wipefs -a "$DISK" -f 2>&1 | tee -a "$LOG_FILE"
@@ -165,8 +196,16 @@ cp /tmp/resolv.conf.bk /etc/resolv.conf
 
 if [ $RESULT -eq 0 ]; then
     log "coreos-installer completed successfully"
+    if [ "$NODE_ROLE" = "worker" ]; then
+        log "Worker: unmask reboot.target and rebooting"
+        systemctl unmask reboot.target
+        systemctl reboot
+    fi
 else
     log "ERROR: coreos-installer failed with exit code $RESULT"
+    if [ "$NODE_ROLE" = "worker" ]; then
+        systemctl unmask reboot.target
+    fi
     exit $RESULT
 fi
 

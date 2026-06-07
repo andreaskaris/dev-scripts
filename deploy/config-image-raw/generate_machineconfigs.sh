@@ -29,10 +29,22 @@ if [[ -f "${SCRIPTDIR}/openperouter-raw.bu" ]]; then
         -o "${output_dir}/99-master-openperouter.yaml"
 fi
 
+if [[ -f "${SCRIPTDIR}/openperouter-raw-worker.bu" ]]; then
+    echo "  openperouter-raw-worker.bu -> 99-worker-openperouter.yaml"
+    butane --files-dir="${EXTRASDIR}" "${SCRIPTDIR}/openperouter-raw-worker.bu" \
+        -o "${output_dir}/99-worker-openperouter.yaml"
+fi
+
 if [[ -f "${SCRIPTDIR}/registry.bu" ]]; then
     echo "  registry.bu -> 01-master-registry.yaml"
     butane --files-dir="${EXTRASDIR}" "${SCRIPTDIR}/registry.bu" \
         -o "${output_dir}/01-master-registry.yaml"
+fi
+
+if [[ -f "${SCRIPTDIR}/registry-worker.bu" ]]; then
+    echo "  registry-worker.bu -> 01-worker-registry.yaml"
+    butane --files-dir="${EXTRASDIR}" "${SCRIPTDIR}/registry-worker.bu" \
+        -o "${output_dir}/01-worker-registry.yaml"
 fi
 
 echo "==> MachineConfig manifests generated."
