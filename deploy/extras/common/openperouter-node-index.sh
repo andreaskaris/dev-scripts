@@ -36,5 +36,5 @@ echo "Setting nodeIndex to ${NODE_INDEX} (from ${BRIDGE_NAME} IP ${BRIDGE_IP})"
 mkdir -p "$(dirname "${CONFIG_PATH}")"
 cat > "${CONFIG_PATH}" <<EOF
 nodeIndex: ${NODE_INDEX}
-logLevel: debug
+logLevel: info
 EOF

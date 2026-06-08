@@ -11,7 +11,7 @@ Documentation=https://github.com/openperouter
 [Container]
 # Container image - update this line to change versions
 # Can be updated via deployment script: sed -i 's|^Image=.*|Image=NEW_IMAGE|' frr.container
-Image=quay.io/fpaoline/router:dev6
+Image=quay.io/fpaoline/openperouter:latestfix1
 
 # Pod association - creates automatic dependency on routerpod-pod.service
 Pod=routerpod.pod

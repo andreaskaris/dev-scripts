@@ -7,5 +7,5 @@ diskSizeGB: 200
 userCorePass: core
 stopLocalRegistry: false
 additionalImages:
-  - name: quay.io/fpaoline/router:dev6
+  - name: quay.io/fpaoline/openperouter:latestfix1
   - name: quay.io/mavazque/ign-converter:latest

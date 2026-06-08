@@ -66,7 +66,7 @@ export APPLIANCE_ISO_PATH="${PWD}/deploy/appliance/appliance.iso"
 export USE_RAW=1
 # Pre-load OpenPERouter container images into the appliance disk
 #export APPLIANCE_ADDITIONAL_IMAGES="quay.io/openperouter/router:main"
-export APPLIANCE_ADDITIONAL_IMAGES="quay.io/fpaoline/router:dev6,quay.io/mavazque/ign-converter:latest"
+export APPLIANCE_ADDITIONAL_IMAGES="quay.io/fpaoline/openperouter:latestfix1,quay.io/mavazque/ign-converter:latest"
 # OpenPERouter quadlets and configs are embedded directly in the appliance
 # ISO ignition, so no extra MachineConfig manifests are needed.
 # ENABLE_VIRTUAL_INTERFACES is injected via a systemd unit in the ISO.
