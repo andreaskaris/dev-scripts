@@ -23,7 +23,7 @@ export BASE_DOMAIN="example.com"
 # --- AGENT-BASED INSTALLER ---
 export AGENT_E2E_TEST_SCENARIO="HA_IPV4V6"
 export AGENT_E2E_TEST_BOOT_MODE="APPLIANCE_ISO"
-export OPENSHIFT_RELEASE_IMAGE="registry.build10.ci.openshift.org/ci-ln-jh8x35b/release:latest"
+export OPENSHIFT_RELEASE_IMAGE="quay.io/openshift-release-dev/ocp-release:4.20.25-x86_64"
 
 # --- NETWORKING ---
 export IP_STACK="v4v6"
