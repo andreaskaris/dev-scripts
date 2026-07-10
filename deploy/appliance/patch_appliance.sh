@@ -16,6 +16,8 @@
 
 set -euo pipefail
 
+export PATH="/usr/local/bin:${PATH}"
+
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXTRASDIR="$(cd "${SCRIPTDIR}/../extras" && pwd)"
 RAWCONFIG_BU="${SCRIPTDIR}/../config-image-raw/openperouter-raw.bu"
@@ -113,6 +115,17 @@ if [[ -s "${registries_conf}" ]]; then
         local: appliance-mirrors.conf
 "
 fi
+
+# --- Patch set-hostname.sh to wait for /etc/assisted/hostnames ---
+# On bare metal the agent takes longer to create this directory than on VMs,
+# causing set-hostname.service to run before the directory exists.
+cp "${SCRIPTDIR}/set-hostname.sh" "${staging}/set-hostname.sh"
+bu_files+="    - path: /usr/local/bin/set-hostname.sh
+      mode: 0755
+      overwrite: true
+      contents:
+        local: set-hostname.sh
+"
 
 # --- Override container signature policy ---
 # The default policy.json requires GPG signatures for registry.redhat.io
