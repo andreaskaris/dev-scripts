@@ -42,7 +42,8 @@ export EXTERNAL_NETWORK_SUBNET_V4='192.168.150.0/24'
 # --- VM RESOURCES ---
 export MASTER_MEMORY=32768
 export MASTER_VCPU=8
-export MASTER_DISK=100
+export MASTER_DISK=150
+export WORKER_DISK=150
 
 # --- AUTHENTICATION (runtime-resolved, never hardcoded) ---
 export SSH_PUB_KEY=$(cat ~/.ssh/id_rsa.pub)

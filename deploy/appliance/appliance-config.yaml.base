@@ -3,7 +3,7 @@ kind: ApplianceConfig
 ocpRelease:
   version: '4.22'
   url: quay.io/openshift-release-dev/ocp-release:4.22.3-x86_64
-diskSizeGB: 200
+diskSizeGB: 150
 userCorePass: core
 stopLocalRegistry: false
 additionalImages:

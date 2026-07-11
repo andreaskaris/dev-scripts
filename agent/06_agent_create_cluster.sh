@@ -610,7 +610,7 @@ function attach_appliance_liveiso() {
 
         # Remove all existing disks and re-add them cleanly
         sudo virt-xml ${name} --remove-device --disk all
-        sudo virt-xml ${name} --add-device --disk size=120,device=disk,target.dev=sda
+        sudo virt-xml ${name} --add-device --disk size=${MASTER_DISK:-150},device=disk,target.dev=sda
         # Mark shared ISOs as readonly+shareable so libvirt skips per-VM SELinux relabeling
         sudo virt-xml ${name} --add-device --disk "${appliance_iso}",device=cdrom,target.dev=sdc,readonly=on,shareable=on
         # Present config-image as a USB disk so the appliance config-image detection finds it

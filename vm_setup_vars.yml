@@ -16,7 +16,7 @@ extradisks_size: "{{ lookup('env', 'VM_EXTRADISKS_SIZE') | default(['8G']) }}"
 flavors:
   master:
     memory: "{{ lookup('env', 'MASTER_MEMORY') }}"
-    disk: "{{ lookup('env', 'MASTER_DISK') }}"
+    disk: 150
     vcpu: "{{ lookup('env', 'MASTER_VCPU') }}"
     extradisks: "{{ lookup('env', 'VM_EXTRADISKS') | default(false) }}"
     architecture: "{{ libvirt_arch }}"
@@ -30,7 +30,7 @@ flavors:
 
   worker:
     memory: "{{ lookup('env', 'WORKER_MEMORY') }}"
-    disk: "{{ lookup('env', 'WORKER_DISK') }}"
+    disk: 150
     vcpu: "{{ lookup('env', 'WORKER_VCPU') }}"
     extradisks: "{{ lookup('env', 'VM_EXTRADISKS') | default(false) }}"
     architecture: "{{ libvirt_arch }}"
