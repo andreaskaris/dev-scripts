@@ -42,6 +42,72 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
 }
 
+rebuild_xfs_agsize() {
+    local DISK=/dev/sda
+    local ROOT_PART_NUM=4
+    local ROOT_PART_TYPE=8304
+    local TMP_MNT SAVE_DIR
+    TMP_MNT=$(mktemp -d)
+    SAVE_DIR=$(mktemp -d)
+
+    log "XFS fix: mounting sda4..."
+    mount "${DISK}${ROOT_PART_NUM}" "$TMP_MNT"
+    fsfreeze --unfreeze "$TMP_MNT" 2>/dev/null || true
+
+    log "XFS fix: saving root XFS content to tmpfs..."
+    cp -aT "$TMP_MNT" "$SAVE_DIR" 2>&1 | tee -a "$LOG_FILE"
+    umount "$TMP_MNT"
+
+    # Force-unmount sda4 from ALL remaining mounts (installer holds /sysroot).
+    while mp=$(findmnt -n -o TARGET "${DISK}${ROOT_PART_NUM}" 2>/dev/null | head -1) && [ -n "$mp" ]; do
+        log "XFS fix: force-unmounting ${DISK}${ROOT_PART_NUM} from $mp..."
+        umount -l "$mp" || break
+    done
+
+    # Move secondary GPT to true disk end BEFORE extending sda4.
+    log "XFS fix: moving secondary GPT to true disk end..."
+    sgdisk -e "$DISK" 2>&1 | tee -a "$LOG_FILE"
+
+    # Extend partition to fill disk (idempotent).
+    local PART_END DISK_END ROOT_PART_START
+    PART_END=$(sgdisk -p "$DISK" | awk "/^ *${ROOT_PART_NUM} / {print \$3}")
+    DISK_END=$(sgdisk -p "$DISK" | awk '/last usable sector/ {print $NF}')
+    if [ "$PART_END" -lt "$DISK_END" ]; then
+        log "XFS fix: extending partition ${ROOT_PART_NUM} to fill disk..."
+        ROOT_PART_START=$(sgdisk -p "$DISK" | awk "/^ *${ROOT_PART_NUM} / {print \$2}")
+        sgdisk -d "$ROOT_PART_NUM" "$DISK" 2>&1 | tee -a "$LOG_FILE"
+        sgdisk -n "${ROOT_PART_NUM}:${ROOT_PART_START}:0" -t "${ROOT_PART_NUM}:${ROOT_PART_TYPE}" \
+            "$DISK" 2>&1 | tee -a "$LOG_FILE"
+        partx --update --nr "$ROOT_PART_NUM" "$DISK" 2>&1 | tee -a "$LOG_FILE"
+    else
+        log "XFS fix: partition ${ROOT_PART_NUM} already at full disk size, skipping extension"
+    fi
+
+    # Rebuild XFS with agsize that keeps agcount < threshold=400 after first-boot growfs.
+    local DISK_BLOCKS AGSIZE
+    DISK_BLOCKS=$(( $(blockdev --getsize64 "$DISK") / 4096 ))
+    AGSIZE=$(( (DISK_BLOCKS + 389) / 390 ))
+    log "XFS fix: rebuilding XFS agsize=${AGSIZE}b → agcount≈390 < threshold=400..."
+    mkfs.xfs -f -d agsize="${AGSIZE}b" -L root "${DISK}${ROOT_PART_NUM}" 2>&1 | tee -a "$LOG_FILE"
+
+    log "XFS fix: restoring root XFS content..."
+    mount "${DISK}${ROOT_PART_NUM}" "$TMP_MNT"
+    chattr -R -i "$SAVE_DIR" 2>/dev/null || true
+    chattr -R -i "$TMP_MNT" 2>/dev/null || true
+    cp -aT "$SAVE_DIR" "$TMP_MNT" 2>&1 | tee -a "$LOG_FILE" || true
+
+    if [ ! -d "$TMP_MNT/ostree" ] || [ ! -d "$TMP_MNT/boot" ]; then
+        log "XFS fix ERROR: restore incomplete — ostree or boot directory missing"
+        return 1
+    fi
+    log "XFS fix: restore OK ($(du -sh "$TMP_MNT" | cut -f1) written)"
+
+    umount "$TMP_MNT"
+    rm -rf "$SAVE_DIR"
+    rmdir "$TMP_MNT"
+    log "XFS fix: complete"
+}
+
 log "Starting ignition hack script"
 
 # Mask reboot.target immediately so neither the agent nor the OS can reboot
@@ -297,6 +363,8 @@ log "Successfully wrote ignition to boot partition"
 # meaning it has already sent the "Rebooting" stage update to the
 # assisted-service.  Rebooting before this point causes the service to
 # mark the node as disconnected/error.
+rebuild_xfs_agsize || { log "XFS fix failed — aborting reboot"; exit 1; }
+
 log "Rebooting node seen — unmasking reboot.target and rebooting"
 systemctl unmask reboot.target
 systemctl reboot
