@@ -17,6 +17,14 @@ export WORKING_DIR="${ROOTDIR}"
 export CLUSTER_NAME="${CLUSTER_NAME:-sno-lab}"
 
 # ============================================================
+# Step 0: Guard — fail fast if previous environment is still running
+# ============================================================
+if sudo podman ps --format '{{.Names}}' 2>/dev/null | grep -q '^externalfrr$'; then
+    echo "ERROR: externalfrr container is still running — run clean.sh first"
+    exit 1
+fi
+
+# ============================================================
 # Step 1: Clean previous environment
 # ============================================================
 "${SCRIPTDIR}/clean.sh"
