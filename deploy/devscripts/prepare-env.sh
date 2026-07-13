@@ -15,6 +15,7 @@ cd "${ROOTDIR}"
 
 export WORKING_DIR="${ROOTDIR}"
 export CLUSTER_NAME="${CLUSTER_NAME:-sno-lab}"
+export OPENPE_VARIANT="${OPENPE_VARIANT:-srv6raw}"
 
 # ============================================================
 # Step 0: Guard — fail fast if previous environment is still running
@@ -55,9 +56,9 @@ deploy/devscripts/patch_agent_config.sh
 # ============================================================
 MANIFESTS_DIR="${WORKING_DIR}/ocp/${CLUSTER_NAME}/openshift"
 
-CONFIG_IMAGE_DIR="config-image-raw"
+CONFIG_IMAGE_DIR="openperouterday0openshift/${OPENPE_VARIANT}/configimage"
 
-echo "==> Generating MachineConfig manifests into ${MANIFESTS_DIR} (mode: ${CONFIG_IMAGE_DIR})..."
+echo "==> Generating MachineConfig manifests into ${MANIFESTS_DIR}..."
 ./deploy/${CONFIG_IMAGE_DIR}/generate_machineconfigs.sh "${MANIFESTS_DIR}"
 
 # ============================================================

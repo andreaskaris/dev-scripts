@@ -61,7 +61,7 @@ export OPENPE_BRIDGE_IP="192.168.110.2"
 
 # --- CUSTOM KERNEL (pre-built appliance ISO with patched kernel) ---
 # This ISO must be the output of prepare_appliance.sh (fully patched)
-export APPLIANCE_ISO_PATH="${PWD}/deploy/appliance/appliance.iso"
+export APPLIANCE_ISO_PATH="${PWD}/deploy/openperouterday0openshift/${OPENPE_VARIANT:-srv6raw}/appliance/appliance.iso"
 
 # --- OPENPEROUTER (rawconfig mode: ISIS + SRv6) ---
 export USE_RAW=1
