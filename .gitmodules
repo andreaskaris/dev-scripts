@@ -1,0 +1,3 @@
+[submodule "deploy/openperouterday0openshift"]
+	path = deploy/openperouterday0openshift
+	url = https://github.com/openshift-kni/openperouterday0openshift.git
