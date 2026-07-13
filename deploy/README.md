@@ -1,312 +1,68 @@
-# Openshift with OpenPERouter
+# OpenPERouter on OpenShift — Day-0 Deployment
 
-## Appliance
+Day-0 deployment of [OpenPERouter](https://github.com/openshift/openperouter) on
+bare-metal OpenShift clusters using the appliance installer. OpenPERouter is
+baked into the appliance ISO and configured via MachineConfig, so networking is
+ready from first boot — no post-install operators needed.
 
-Build an OpenShift appliance ISO with OpenPERouter, registry mirrors, and the ignition hack agent embedded.
+## Deployments
 
-### Prerequisites
+| Directory | Underlay | Overlay | Config method | Route distribution |
+|-----------|----------|---------|---------------|--------------------|
+| [`srv6raw/`](srv6raw/) | ISIS | SRv6 + VXLAN | Rawconfig (shell templates) | EVPN route reflector (master-0) |
+| [`evpnfullconfig/`](evpnfullconfig/) | eBGP | VXLAN only | Controller (`openpe_config.yaml`) | TOR distributes all routes |
 
-- `podman`, `coreos-installer`, `jq`, `yq`, `butane`
-- A pull secret JSON file (download from [console.redhat.com](https://console.redhat.com/openshift/install/pull-secret))
+Each directory contains its own [TOPOLOGY.md](srv6raw/TOPOLOGY.md) with full addressing and peering details.
 
-### Build
+## How it works
 
-```bash
-# With pull secret only
-./deploy/appliance/generate_appliance.sh /path/to/pull-secret.json
+1. **`appliance/generate_appliance.sh`** builds a RHCOS appliance ISO with
+   OpenPERouter quadlets, registry mirrors, and DNS overrides embedded
+2. **`configimage/generate_config_image.sh`** produces a config-image ISO with
+   install-config, agent-config, and MachineConfig manifests (rendered from butane)
+3. Nodes boot from the appliance ISO, mount the config-image, and install
+   OpenShift with OpenPERouter networking active from the start
 
-# With pull secret and SSH key
-SSH_PUB_KEY="$(cat ~/.ssh/id_rsa.pub)" ./deploy/appliance/generate_appliance.sh /path/to/pull-secret.json 
-```
+Both scripts take a pull secret file as the first argument. See each
+deployment's README for build commands and configuration details.
 
-**NOTE: the appliance cache must be prefilled with a custom iso containing the fix for srv6 crash with vrfs
 
-```
-commit ca8ecd7444a9f4295bc7bed1be908564bcc206f0
-Author: Ryoga Saito <contact@proelbtn.com>
-Date:   Thu Sep 2 05:20:14 2021 +0000
+## How to deploy
 
-    Set fc_nlinfo in nh_create_ipv4, nh_create_ipv6
-```
+- Choose your variant. It will drive the choice of `openperouterday0openshift/srv6raw` or
+`openperouterday0openshift/evpnfullconfig`.
+- Build the appliance iso with `SSH_PUB_KEY="$(cat ~/.ssh/id_rsa.pub)" ./generate_appliance.sh ~/devel/dev-scripts/openshift_pull.json` locally from the variant of choice
+- Get back to the root
+- Clean any previous deployment with `deploy/devscripts/clean.sh`
+- Redeploy with `deploy/devscripts/prepare-env.sh`
 
-A coreos iso must be pre generated under `deploy/appliance/cache/4.20.12-x86_64`. At the same time a custom release image `quay.io/fpaoline/ocp-release:4.20.12-x86_64-kernel-5.14.0-570.76.1.5114_2224397254` must be consumed.
+## NOTE
 
-The script:
-
-1. Generates `appliance-config.yaml` from `appliance-config.yaml.base`, injecting the pull secret and optional SSH key
-2. Runs `openshift-appliance clean` + `build live-iso`
-3. Patches the ISO via `patch_appliance.sh` (OpenPERouter content, registry mirrors, hack agent)
-
-Output: `deploy/appliance/appliance.iso`
-
-Base appliance-config can be found under `deploy/appliance/appliance-config.yaml.base`.
-
-### Patch an existing ISO
-
-To patch a pre-built appliance ISO without rebuilding:
+The cluster is accessible from an evpn (or srv6) tunnel from the red vrf on the hypervisor
+This means that in order to monitor the deployment, you must run
 
 ```bash
-./deploy/appliance/patch_appliance.sh <appliance.iso> <ocp_dir>
+sudo ip vrf exec red ./ocp/sno-lab/openshift-install agent wait-for install-complete --dir ocp/sno-lab/configimage
 ```
 
-Where `<ocp_dir>` contains `cache/*/cluster-resources` with IDMS/ITMS YAML files.
-
-## Config Image
-
-Generate the agent config-image ISO that the appliance mounts at first boot. It bundles `install-config.yaml`, `agent-config.yaml`, and MachineConfig manifests (OpenPERouter, DNS, registry).
-
-**Requires:** the appliance to be built first -- the script uses the `openshift-install` binary from `deploy/appliance/cache/`.
-
-### Prerequisites
-
-- `butane`
-
-### Build
+Similarly, to access the cluster you must run
 
 ```bash
-# openpeapi mode (default)
-./deploy/config-image-openpe/generate_config_image.sh [config_image_dir]
-
-# rawconfig mode
-./deploy/config-image-raw/generate_config_image.sh [config_image_dir]
+sudo ip vrf exec red /usr/local/bin/kubectl --kubeconfig=/home/fpaoline/devel/dev-scripts/ocp/sno-lab/configimage/auth/kubeconfig get nodes
 ```
 
-`config_image_dir` defaults to `configimage/` inside the chosen folder. The ISO is written to `<config_image_dir>/agentconfig.noarch.iso`.
 
-The script:
+## Checking the nodes
 
-1. Copies `install-config.yaml` and `agent-config.yaml` into the work directory
-2. Generates MachineConfig manifests from butane sources via `generate_machineconfigs.sh`
-3. Runs `openshift-install agent create config-image`
-
-### Generate MachineConfigs standalone
+You can ssh in the nodes using the secondary interface, ie
 
 ```bash
-./deploy/config-image-openpe/generate_machineconfigs.sh <output_dir>
-# or, for rawconfig mode:
-./deploy/config-image-raw/generate_machineconfigs.sh <output_dir>
+ssh core@192.168.150.20
 ```
 
-Compiles butane sources (`openperouter.bu`, `dns.bu`, `registry.bu`) into MachineConfig YAML manifests without building the full config-image ISO.
+## Pre requisites
 
-## Using it locally with dev-scripts
+The current version requires:
 
-With an appliance created with `generate_appliance.sh`, prepare a full dev-scripts environment for an agent-based deployment with OpenPERouter bridge networking.
-
-```bash
-./deploy/devscripts/prepare-env.sh
-```
-
-Run from the repo root. The script:
-
-1. Cleans any previous environment (`clean.sh`)
-2. Configures the host and prepares the agent release (`02_configure_host.sh`, `agent/03..05`)
-3. Patches agent-config for OpenPERouter bridge networking (`openperouter/patch_agent_config.sh`)
-4. Generates MachineConfig manifests into `$WORKING_DIR/ocp/$CLUSTER_NAME/openshift/`
-5. Starts the external FRR instance for EVPN peering (`externalfrr/run_frr.sh`)
-6. Creates the cluster (`agent/06_agent_create_cluster.sh`)
-
-### Cleanup
-
-```bash
-./deploy/devscripts/clean.sh
-```
-
-Tears down the external FRR container and networking, then runs `make clean` and `host_cleanup.sh`. Errors are ignored so cleanup proceeds as far as possible.
-
-## Interacting with the cluster
-
-Since the VXLAN tunnel terminates in the `red` VRF on the hypervisor, the cluster API is not reachable from the default network namespace. This means `agent/06_agent_create_cluster.sh` will fail when it tries to wait for the installation to complete. This is expected -- use the commands below to monitor progress and interact with the cluster manually.
-
-All cluster traffic must be prefixed with `sudo ip vrf exec red`.
-
-### SSH into nodes
-
-```bash
-sudo ip vrf exec red ssh -i ~/.ssh/id_rsa core@192.168.110.3
-```
-
-### kubectl commands
-
-```bash
-sudo ip vrf exec red /usr/local/bin/kubectl \
-    --kubeconfig=ocp/sno-lab/auth/kubeconfig get nodes
-```
-
-### Monitor installation progress
-
-```bash
-sudo ip vrf exec red ./ocp/sno-lab/openshift-install agent wait-for install-complete \
-    --dir ocp/sno-lab/configimage
-```
-
-### The configuration
-
-This setup does not use OpenPERouter configuration files as srv6 is not available yet.
-
-It:
-
-- generates the configuration using a systemd unit under `extras/rawconfig/generate-config.sh`. Two different types of configuration
-are available, wether a node must act as route reflector or not
-- it runs two script (`setup-underlay.sh` and `setup-network.sh`) to prepare the underlay interface and the network  setup required
-in the perouter's namespace, mimicing what the controller would do with a proper api
-
-All the parameters are configurable in the `vpn-setup.env` file.
-
-### The topology
-
-A 4-node ISIS + SRv6 fabric running on top of an OpenShift 3-node compact cluster,
-with an external FRR instance acting as a TOR/RemotePE on the hypervisor.
-
-- **Underlay**: ISIS Level-1, single area `49.0001`
-- **L3VPN** (north-south): BGP IPv4/IPv6 VPN with SRv6 encapsulation between all nodes and the TOR
-- **L2VPN** (east-west): BGP EVPN with VXLAN (VNI 210) between the 3 masters only, reflected by master-0
-- **AS**: 65500 (all iBGP)
-
-```
-                       ┌──────────────────────────────┐
-                       │   External FRR (TOR/RemotePE)│
-                       │   Container: externalfrr     │
-                       │   Router ID: 10.0.0.20       │
-                       │   Loopback:  fc00:0:20::1    │
-                       │   SRv6 pfx:  fd00:20::/48    │
-                       │   VRF red:                   │
-                       │     lored:    10.10.20.1/32   │
-                       │     lo-extra: 10.100.0.1/32   │
-                       │       (DNS + NTP server)      │
-                       └──────────┬───────────────────┘
-                                  │ sno-labbm (192.168.111.x)
-                                  │ ISIS L1
-                 ┌────────────────┼────────────────┐
-                 │                │                │
-           enp2s0│          enp2s0│          enp2s0│
-     ┌───────────┴──┐   ┌────────┴─────┐   ┌─────┴────────┐
-     │  master-0    │   │  master-1    │   │  master-2    │
-     │  EVPN RR     │   │  EVPN Client │   │  EVPN Client │
-     │  10.0.0.2    │   │  10.0.0.3    │   │  10.0.0.4    │
-     │  fc00:0:2::1 │   │  fc00:0:3::1 │   │  fc00:0:4::1 │
-     │  fd00:2::/48 │   │  fd00:3::/48 │   │  fd00:4::/48 │
-     │              │   │              │   │              │
-     │  br0: .110.2 │   │  br0: .110.3 │   │  br0: .110.4 │
-     │  VRF red:    │   │  VRF red:    │   │  VRF red:    │
-     │   br-pe-210  │   │   br-pe-210  │   │   br-pe-210  │
-     │   .110.1/24  │   │   .110.1/24  │   │   .110.1/24  │
-     │   VNI 210    │   │   VNI 210    │   │   VNI 210    │
-     └──────────────┘   └──────────────┘   └──────────────┘
-           ▲                   ▲                   ▲
-           └───── EVPN RR ─────┴───── EVPN RR ─────┘
-                (l2vpn evpn reflected by master-0)
-```
-
-## Addressing Scheme
-
-All addresses are derived from the node's last octet of `br0` IPv4 (`LAST_OCTET`).
-
-| Node | Router ID | Loopback IPv6 | SRv6 Source | SRv6 Prefix | Underlay IPv6 | Bridge IPv4 | Bridge IPv6 |
-|---|---|---|---|---|---|---|---|
-| TOR (externalfrr) | 10.0.0.20 | fc00:0:20::1 | fd00:20::1 | fd00:20::/48 | fc00:100::20 | — | — |
-| master-0 (RR) | 10.0.0.2 | fc00:0:2::1 | fd00:2::1 | fd00:2::/48 | fc00:100::2 | 192.168.110.2 | fd00:110::2 |
-| master-1 (client) | 10.0.0.3 | fc00:0:3::1 | fd00:3::1 | fd00:3::/48 | fc00:100::3 | 192.168.110.3 | fd00:110::3 |
-| master-2 (client) | 10.0.0.4 | fc00:0:4::1 | fd00:4::1 | fd00:4::/48 | fc00:100::4 | 192.168.110.4 | fd00:110::4 |
-
-### Address derivation formula
-
-Given `LAST_OCTET` (e.g. `2`, `3`, `4`, `20`):
-
-| Address | Formula |
-|---|---|
-| Router ID / VTEP IP | `10.0.0.{LAST_OCTET}` |
-| Loopback IPv6 | `fc00:0:{LAST_OCTET}::1` |
-| SRv6 source | `fd00:{LAST_OCTET}::1` |
-| SRv6 prefix | `fd00:{LAST_OCTET}::/48` |
-| Underlay IPv6 | `fc00:100::{LAST_OCTET}` |
-| ISIS NET | `49.0001.0000.0000.{LAST_OCTET:04d}.00` |
-
-## BGP Peering (AS 65500, all iBGP)
-
-### L3VPN sessions (ipv4 vpn + ipv6 vpn)
-
-The TOR peers with all 3 masters for north-south L3VPN over SRv6.
-master-0 also peers with the TOR for EVPN.
-
-| From | To | Peer Group | AFIs |
-|---|---|---|---|
-| TOR | master-0 (fc00:0:2::1) | PE-NODES | ipv4 vpn, ipv6 vpn |
-| TOR | master-1 (fc00:0:3::1) | PE-NODES | ipv4 vpn, ipv6 vpn |
-| TOR | master-2 (fc00:0:4::1) | PE-NODES | ipv4 vpn, ipv6 vpn |
-
-### EVPN sessions (l2vpn evpn)
-
-master-0 is the EVPN route reflector. Clients peer only with master-0.
-TOR does not participate in EVPN — north-south traffic uses L3VPN only.
-
-| From | To | Peer Group | Role |
-|---|---|---|---|
-| master-0 (RR) | master-1 (fc00:0:3::1) | EVPN-CLIENTS | route-reflector-client |
-| master-0 (RR) | master-2 (fc00:0:4::1) | EVPN-CLIENTS | route-reflector-client |
-| master-1 | master-0 (fc00:0:2::1) | EVPN-RR | client |
-| master-2 | master-0 (fc00:0:2::1) | EVPN-RR | client |
-
-## SRv6 SIDs
-
-Locator block: `/48`, node: `16 bits`, function: `16 bits` (uSID).
-
-| Node | uN (node SID) | uDT46 (VRF decap) | uA (adjacency) |
-|---|---|---|---|
-| TOR | fd00:20:: | fd00:20:0:1:: | fd00:20:0:{2,3,4}:: |
-| master-0 | fd00:2:: | fd00:2:0:1:: | fd00:2:0:{2,3,4}:: |
-| master-1 | fd00:3:: | fd00:3:0:1:: | fd00:3:0:{2,3,4}:: |
-| master-2 | fd00:4:: | fd00:4:0:1:: | fd00:4:0:{2,3,4}:: |
-
-## L3VPN Routes (VRF red)
-
-### What each master sees
-
-| Prefix | Next Hop | SRv6 SID | Source |
-|---|---|---|---|
-| 10.10.20.1/32 | 10.0.0.20 | fd00:20:0:1:: | TOR VRF loopback (lored) |
-| 10.100.0.1/32 | 10.0.0.20 | fd00:20:0:1:: | TOR DNS/NTP loopback (lo-extra) |
-| 192.168.110.0/24 | connected | — | Local br-pe-210 (L2 gateway) |
-
-### What the TOR sees
-
-| Prefix | Next Hop | SRv6 SID | Source |
-|---|---|---|---|
-| 192.168.110.2/32 | 10.0.0.2 | fd00:2:0:1:: | master-0 bridge IP |
-| 192.168.110.3/32 | 10.0.0.3 | fd00:3:0:1:: | master-1 bridge IP |
-| 192.168.110.4/32 | 10.0.0.4 | fd00:4:0:1:: | master-2 bridge IP |
-| 10.10.20.1/32 | connected | — | Local lored |
-| 10.100.0.1/32 | connected | — | Local lo-extra |
-
-## L2VPN / EVPN (VNI 210)
-
-All 3 masters share an L2 segment via VXLAN bridge `br-pe-210`:
-- Gateway IP: `192.168.110.1/24` + `fd00:110::1/64` (anycast on all nodes)
-- VNI: 210
-- RT: 65500:210
-
-EVPN type-2 (MAC/IP) and type-3 (BUM/VTEP) routes are exchanged between
-all masters via master-0 as route reflector. The TOR does **not** participate
-in EVPN L2 — north-south traffic only via L3VPN.
-
-## Services on TOR (VRF red)
-
-### DNS (dnsmasq on 10.100.0.1)
-
-| Record | Target |
-|---|---|
-| api.sno-lab.example.com | 192.168.110.10 (API VIP) |
-| api-int.sno-lab.example.com | 192.168.110.10 (API VIP) |
-| *.apps.sno-lab.example.com | 192.168.110.11 (Ingress VIP) |
-
-### NTP (chronyd on 10.100.0.1)
-
-Stratum 3 orphan server. All masters sync to it via the SRv6 L3VPN path.
-
-## ISIS Underlay
-
-- Area: `49.0001`
-- Level: L1 only
-- Interface: `enp2s0` on masters, `sno-labbm` on TOR
-- Physical network: `192.168.111.x` (libvirt baremetal network)
-- All 4 nodes form a full mesh of L1 adjacencies on the shared broadcast segment
+- disabling selinux on the hypervisor
+- running [./libvirt-iptables-rules.sh](iptables-rules.sh) if docker is running on this host
