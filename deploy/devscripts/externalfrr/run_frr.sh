@@ -157,6 +157,8 @@ PE_NEIGHBOR_LINES=""
 for idx in "${PE_INDICES[@]}"; do
     PE_NEIGHBOR_LINES+=" neighbor fc00:0:${idx}::1 peer-group PE-NODES
 "
+    PE_NEIGHBOR_LINES+=" neighbor fd00::${idx} peer-group PE-NODES
+"
 done
 
 # --- Generate FRR configuration ---
