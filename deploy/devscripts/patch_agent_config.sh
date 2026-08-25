@@ -81,6 +81,8 @@ bridge_base = '${FIRST_BRIDGE_IP%.*}'
 bridge_start_octet = ${FIRST_OCTET}
 bridge_v6_base = '${BRIDGE_V6_BASE}'
 
+nodeidx_base = '192.0.2'
+
 extra_nic_base = '${EXTRA_NIC_BASE}'
 extra_nic_start_octet = ${EXTRA_NIC_START_OCTET}
 
@@ -88,6 +90,7 @@ cfg['additionalNTPSources'] = ['${NTP_SERVER}']
 
 for i, host in enumerate(cfg['hosts']):
     bridge_ip = f'{bridge_base}.{bridge_start_octet + i}'
+    nodeidx_ip = f'{nodeidx_base}.{bridge_start_octet + i}'
     bridge_ip_v6 = f'{bridge_v6_base}{bridge_start_octet + i}'
     extra_nic_ip = f'{extra_nic_base}.{extra_nic_start_octet + i}'
 
@@ -118,7 +121,7 @@ for i, host in enumerate(cfg['hosts']):
         print(f'ERROR: Could not extract NIC IP for host {i}', file=sys.stderr)
         sys.exit(1)
 
-    print(f'  Host {i}: MAC={mac}  NIC_IP={nic_ip}  NIC_IPv6={nic_ip_v6}  Bridge_IP={bridge_ip}  Bridge_IPv6={bridge_ip_v6}  Extra_NIC_IP={extra_nic_ip}')
+    print(f'  Host {i}: MAC={mac}  NIC_IP={nic_ip}  NIC_IPv6={nic_ip_v6}  Bridge_IP={bridge_ip}  Bridge_IPv6={bridge_ip_v6}  Extra_NIC_IP={extra_nic_ip} Nodeidx_IP={nodeidx_ip}')
 
     nic_entry = {
         'name': '${NIC_NAME}',
@@ -137,6 +140,20 @@ for i, host in enumerate(cfg['hosts']):
             'address': [{'ip': nic_ip_v6, 'prefix-length': nic_prefix_v6}],
             'dhcp': False,
         }
+    nodeidx_entry = {
+        'name': 'nodeidx',
+        'type': 'dummy',
+        'state': 'up',
+        'ipv4': {
+            'enabled': True,
+            'address': [{'ip': nodeidx_ip, 'prefix-length': 24}],
+            'dhcp': False,
+            'auto-dns': False,
+        },
+        'ipv6': {
+            'enabled': False,
+        },
+    }
 
     host['networkConfig'] = {
         'interfaces': [
@@ -167,6 +184,7 @@ for i, host in enumerate(cfg['hosts']):
                 'ipv4': {'enabled': False},
                 'ipv6': {'enabled': False},
             },
+            nodeidx_entry,
             nic_entry,
             {
                 'name': '${PROV_NIC_NAME}',
