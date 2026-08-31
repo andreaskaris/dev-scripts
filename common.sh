@@ -510,14 +510,14 @@ if [[ ! -z ${AGENT_E2E_TEST_SCENARIO} ]]; then
           export ENABLE_TWO_NODE_FENCING="true"
           ;;
       "HA" )
-          export NUM_MASTERS=3
-          export MASTER_VCPU=4
+          export NUM_MASTERS=${NUM_MASTERS:-3}
+          export MASTER_VCPU=${MASTER_VCPU:-4}
           export MASTER_DISK=${MASTER_DISK:-100}
-          export MASTER_MEMORY=32768
-          export NUM_WORKERS=2
-          export WORKER_VCPU=4
+          export MASTER_MEMORY=${MASTER_MEMORY:-32768}
+          export NUM_WORKERS=${NUM_WORKERS:-2}
+          export WORKER_VCPU=${WORKER_VCPU:-4}
           export WORKER_DISK=${WORKER_DISK:-100}
-          export WORKER_MEMORY=9000
+          export WORKER_MEMORY=${WORKER_MEMORY:-9000}
           ;;
       "SNO" )
           export NUM_MASTERS=1
