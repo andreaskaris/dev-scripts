@@ -7,13 +7,15 @@
 # Usage: ./deploy/devscripts/prepare-env.sh
 
 set -euo pipefail
+set -x
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOTDIR="$(cd "${SCRIPTDIR}/../.." && pwd)"
 
 cd "${ROOTDIR}"
+source "config_${USER}.sh"
 
-export WORKING_DIR="${ROOTDIR}"
+export WORKING_DIR="${WORKING_DIR:-$ROOTDIR}"
 export CLUSTER_NAME="${CLUSTER_NAME:-sno-lab}"
 export OPENPE_VARIANT="${OPENPE_VARIANT:-srv6raw}"
 
@@ -54,12 +56,10 @@ deploy/devscripts/patch_agent_config.sh
 # ============================================================
 # Step 4: Generate MachineConfig manifests
 # ============================================================
-MANIFESTS_DIR="${WORKING_DIR}/ocp/${CLUSTER_NAME}/openshift"
-
-CONFIG_IMAGE_DIR="openperouterday0openshift/${OPENPE_VARIANT}/configimage"
+MANIFESTS_DIR="${ROOTDIR}/ocp/${CLUSTER_NAME}/openshift"
 
 echo "==> Generating MachineConfig manifests into ${MANIFESTS_DIR}..."
-./deploy/${CONFIG_IMAGE_DIR}/generate_machineconfigs.sh "${MANIFESTS_DIR}"
+${CONFIG_IMAGE_DIR}/generate_machineconfigs.sh "${MANIFESTS_DIR}"
 
 # ============================================================
 # Step 5: Start external FRR for EVPN peering

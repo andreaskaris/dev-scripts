@@ -18,7 +18,8 @@ set -euxo pipefail
 #
 # If first_bridge_ip is not specified, defaults to 192.168.110.2
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${DIR}/../../common.sh"
 
 FIRST_BRIDGE_IP="${1:-192.168.110.2}"
 BRIDGE_PREFIX="24"
@@ -32,10 +33,11 @@ BRIDGE_V6_GW="fd00:110::1"
 
 NIC_PREFIX="24"
 
-WORKING_DIR="${WORKING_DIR:-/opt/dev-scripts}"
 CLUSTER_NAME="${CLUSTER_NAME:-ostest}"
-AGENT_CONFIG="${WORKING_DIR}/ocp/${CLUSTER_NAME}/agent-config.yaml"
-INSTALL_CONFIG="${WORKING_DIR}/ocp/${CLUSTER_NAME}/install-config.yaml"
+INSTALL_CONFIG_PATH="${OCP_DIR}"
+INSTALL_PATH="${SCRIPTDIR}/${INSTALL_CONFIG_PATH}"
+AGENT_CONFIG="${INSTALL_PATH}/agent-config.yaml"
+INSTALL_CONFIG="${INSTALL_PATH}/install-config.yaml"
 
 NIC_NAME="enp2s0"
 PROV_NIC_NAME="enp1s0"
@@ -64,6 +66,11 @@ BRIDGE_V6_NETWORK="${BRIDGE_V6_SUBNET}"
 
 # Extract the last octet of the first bridge IP as the starting offset
 FIRST_OCTET="${FIRST_BRIDGE_IP##*.}"
+
+echo "Backing up agent config ${AGENT_CONFIG} to ${AGENT_CONFIG}.back"
+cp ${AGENT_CONFIG}{,.back}
+
+echo "Patching ${AGENT_CONFIG}:"
 
 # Extract per-host info (MAC, NIC IP) and patch all hosts
 python3 -c "
@@ -242,6 +249,9 @@ API_VIP="${API_VIP:-${BRIDGE_SUBNET}.10}"
 INGRESS_VIP="${INGRESS_VIP:-${BRIDGE_SUBNET}.11}"
 API_VIP_V6="${API_VIP_V6:-${BRIDGE_V6_BASE}10}"
 INGRESS_VIP_V6="${INGRESS_VIP_V6:-${BRIDGE_V6_BASE}11}"
+
+echo "Backing up install config ${INSTALL_CONFIG} to ${INSTALL_CONFIG}.back"
+cp ${INSTALL_CONFIG}{,.back}
 
 echo "Patching ${INSTALL_CONFIG}:"
 echo "  machineNetwork -> ${BRIDGE_NETWORK}, ${BRIDGE_V6_NETWORK}"
