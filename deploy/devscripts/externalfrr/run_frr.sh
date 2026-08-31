@@ -82,11 +82,6 @@ echo "Adding underlay IPv6 ${UNDERLAY_V6}/64 to ${ISIS_IFACE}..."
 sudo ip -6 addr add "${UNDERLAY_V6}/64" dev "${ISIS_IFACE}" 2>/dev/null || true
 sudo sysctl -w "net.ipv4.conf.${ISIS_IFACE}.rp_filter=0" >/dev/null
 
-# --- VRF strict mode (must be set BEFORE creating any VRF) ---
-# seg6local End.DT46 with vrftable requires strict_mode=1
-echo "Enabling VRF strict mode..."
-sudo sysctl -w net.vrf.strict_mode=1 >/dev/null
-
 # --- SRv6 sysctls ---
 echo "Setting SRv6 sysctls..."
 sudo sysctl -w net.ipv4.ip_forward=1 >/dev/null
@@ -109,6 +104,11 @@ else
     sudo firewall-cmd --zone=trusted --add-interface="${VRF_NAME}" 2>/dev/null || true
 fi
 sudo sysctl -w "net.ipv4.conf.${VRF_NAME}.rp_filter=0" >/dev/null 2>&1 || true
+
+# --- VRF strict mode (must be set AFTER creating the first VRF, otherwise the sysctl is not available) ---
+# seg6local End.DT46 with vrftable requires strict_mode=1
+echo "Enabling VRF strict mode..."
+sudo sysctl -w net.vrf.strict_mode=1 >/dev/null
 
 # --- Bypass conntrack for VRF traffic (firewalld drops ct state invalid) ---
 echo "Adding nftables notrack rules for VRF ${VRF_NAME}..."
@@ -173,17 +173,10 @@ debug bgp updates
 debug bgp neighbor-events
 !
 interface ${ISIS_IFACE}
- ip router isis PE
- ipv6 router isis PE
-exit
-!
-interface lo
- ip router isis PE
  ipv6 router isis PE
 exit
 !
 interface ${VTEP_LO}
- ip router isis PE
  ipv6 router isis PE
  isis passive
 exit
@@ -196,11 +189,13 @@ router bgp ${BGP_AS}
  bgp log-neighbor-changes
  !
  neighbor PE-NODES peer-group
+ neighbor PE-NODES capability extended-nexthop
  neighbor PE-NODES remote-as ${BGP_AS}
  neighbor PE-NODES update-source ${LOOPBACK_V6}
 ${PE_NEIGHBOR_LINES} !
  segment-routing srv6
   locator MAIN
+  encap-behavior H_Encaps_Red
  exit
  !
  address-family ipv4 vpn
@@ -240,7 +235,6 @@ exit
 router isis PE
  is-type level-1
  net ${ISIS_NET}
- topology ipv6-unicast
  lsp-gen-interval 2
  log-adjacency-changes
  log-pdu-drops
