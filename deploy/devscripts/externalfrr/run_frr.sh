@@ -26,7 +26,6 @@ IFS=' ' read -ra PE_INDICES <<< "${PE_INDICES:-2 3 4 5 6}"
 # Addressing — fixed IPs for external FRR remotepe
 ROUTER_ID="${ROUTER_ID:-10.0.0.20}"
 LOOPBACK_V6="${LOOPBACK_V6:-fc00:0:20::1}"
-SRV6_SOURCE="${SRV6_SOURCE:-fd00:20::1}"
 SRV6_PREFIX="${SRV6_PREFIX:-fd00:20::/48}"
 UNDERLAY_V6="${UNDERLAY_V6:-fc00:100::20}"
 ISIS_NET="${ISIS_NET:-49.0001.0000.0000.0020.00}"
@@ -55,7 +54,6 @@ echo "============================================="
 echo "  ISIS iface:     ${ISIS_IFACE}"
 echo "  Router ID:      ${ROUTER_ID}"
 echo "  Loopback IPv6:  ${LOOPBACK_V6}"
-echo "  SRv6 source:    ${SRV6_SOURCE}"
 echo "  SRv6 prefix:    ${SRV6_PREFIX}"
 echo "  ISIS NET:       ${ISIS_NET}"
 echo "  BGP AS:         ${BGP_AS}"
@@ -74,7 +72,6 @@ else
 fi
 sudo ip addr add "${ROUTER_ID}/32" dev "${VTEP_LO}" 2>/dev/null || true
 sudo ip -6 addr add "${LOOPBACK_V6}/128" dev "${VTEP_LO}" 2>/dev/null || true
-sudo ip -6 addr add "${SRV6_SOURCE}/128" dev "${VTEP_LO}" 2>/dev/null || true
 sudo sysctl -w "net.ipv4.conf.${VTEP_LO}.rp_filter=0" >/dev/null
 
 # --- Underlay IPv6 on ISIS interface ---
@@ -246,7 +243,7 @@ exit
 segment-routing
  srv6
   encapsulation
-   source-address ${SRV6_SOURCE}
+   source-address ${LOOPBACK_V6}
   exit
   locators
    locator MAIN
