@@ -59,7 +59,8 @@ export IGNITION_EXTRA="${PWD}/ignition-password.ign"
 # Resolve api.CLUSTER_DOMAIN to the bridge IP so it's reachable from VRF context
 export OPENPE_BRIDGE_IP="192.168.110.2"
 
-export OPENPEROUTER_DAY0_OPENSHIFT="${PWD}/deploy/openperouterday0openshift/${OPENPE_VARIANT:-srv6raw}"
+export OPENPE_VARIANT="srv6fullconfig"
+export OPENPEROUTER_DAY0_OPENSHIFT="/opt/devel/openperouterday0openshift/${OPENPE_VARIANT:-srv6fullconfig}"
 
 # --- PATCH_APPLIANCE_PATH ---
 export PATCH_APPLIANCE_PATH="${OPENPEROUTER_DAY0_OPENSHIFT}/appliance/patch_appliance.sh"

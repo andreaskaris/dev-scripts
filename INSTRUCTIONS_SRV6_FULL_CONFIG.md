@@ -1,87 +1,112 @@
 Preparation:
 ==============================
 
-> Note: With regards to dev-scripts, during the installation, you will deal with 2 directories: /opt/dev-scripts which is the working dir for dev-scripts
-and is used as a cache. And script_dir which is /opt/devel/dev-scripts and which is the location of the checked out dev-scripts, of config_${USER}.sh
-and of pull_secret.json.
+> Note: With regards to dev-scripts, during the installation, you will deal with 2 directories: `/opt/dev-scripts` which is the working dir for dev-scripts
+and is used as a cache. And `script_dir` which is `/opt/devel/dev-scripts` and which is the location of the checked out dev-scripts, of `config_${USER}.sh`
+and of `pull_secret.json`.
 
-i. Install Centos 9 (or RHEL 9) on your server. Centos 10 / RHEL 10 are not compatible with dev-scripts.
+> Note: We run everything as `root`. Additional steps are needed if you are using a local user.
 
-ii. Clone the repositories into /opt/devel
+i. Install Centos 9 (or RHEL 9) on your server. Centos 10 / RHEL 10 are not compatible with dev-scripts. Select
+`Virtualization Host` under `Software Selection` during the installation process. Register the system during or after
+installation. The partition holding `/opt` will need a lot of disk space (minimum for the dev-scripts is 80 GB, plus
+additional space for the appliance image, etc.), so aim for 500 GB to 1 TB. Update the system after installation.
 
 ```
+yum update -y
+reboot
+```
+
+ii. Clone the repositories into `/opt/devel`
+
+```
+yum install git -y
 mkdir /opt/devel && cd /opt/devel
 git clone https://github.com/andreaskaris/dev-scripts.git
 pushd dev-scripts && git checkout improvements && popd
-git clone https://github.com/andreaskaris/openperouterday0openshift.git
-pushd openperouterday0openshift && git checkout improvements && popd
+git clone https://github.com/openshift-kni/openperouterday0openshift.git
 ```
 
-iii. Follow instructions in https://github.com/openshift-metal3/dev-scripts#preparation about
-upgrades, installing dependencies, setting up sudo access (if you aren't running as root), etc.
-
-Then, create your USER config:
+iii. Create the USER config (`config_root.sh`):
 
 ```
 cd /opt/devel/dev-scripts
 cp config_example.sh config_$USER.sh
 ```
 
-And follow https://github.com/openshift-metal3/dev-scripts#configuration to set up your pull secret.
+Go to https://console-openshift-console.apps.ci.l2s4.p1.openshiftapps.com/, click on your name in the top right, copy the login command, extract the token from the command and use it to set `CI_TOKEN` in `config_$USER.sh`.
 
-Store the pull_secret.json in /opt/devel/dev-scripts/pull_secret.json. And your config_$USER.sh should contain
-a token starting with sha256:
+Verify:
 
 ```
-# grep 'export CI_TOKEN' config_root.sh | cut -b-25
+# grep 'export CI_TOKEN' config_${USER}.sh | cut -b-25
 export CI_TOKEN='sha256~_
 ```
 
-> Note: The location of the pull_secret.json can be customized with PERSONAL_PULL_SECRET. Do _not_ set PULL_SECRET_FILE.
-It's an internal variable only and is set to $workdir/pull_secret.json by default.
+Save the secret obtained from https://cloud.redhat.com/openshift/install/pull-secret to `/opt/devel/dev-scripts/pull_secret.json`.
 
-iv. Install further prerequisites as well as tmux:
+> Note: The location of the `pull_secret.json` can be customized with `PERSONAL_PULL_SECRET`. Do _not_ set `PULL_SECRET_FILE`.
+It's an internal variable only and is set to `$workdir/pull_secret.json` by default.
+
+iv. Install tools and prerequisites:
 
 ```
 cd /opt/devel/dev-scripts
-./01_install_requirements.sh
-# install other stuff that might be missing
 yum install -y butane coreos-installer tmux podman pip go
 python -m pip install 'yq>=3,<4'
+./01_install_requirements.sh
 ```
 
-v. Merge fede's configuration with the user's and edit the config as needed:
+v. Merge `config_perouter.sh` configuration with the user's and edit the config if needed:
 
 ```
 cd /opt/devel/dev-scripts
 cat config_perouter.sh >> "config_${USER}.sh"
-vim "config_${USER}.sh"
 ```
 
-IMPORTANT:
-- set WORKING_DIR to /opt/dev-scripts
-- Do not use PULL_SECRET_FILE - that var is outdated and will break the installation. Instead, PERSONAL_PULL_SECRET should
-  be used if the location of the pull secret is different from /opt/devel/dev-scripts/pull_secret.json
-- add OPENPE_VARIANT before the DAY0 line and set it to your variant, e.g. `export OPENPE_VARIANT=srv6fullconfig`
-- set OPENPEROTUER_DAY0_OPENSHIFT to "/opt/devel/openperouterday0openshift/${OPENPE_VARIANT:-srv6fullconfig}"
+Edit the config if needed:
+
+```
+# vim "config_${USER}.sh"
+```
+
+The configuration should work _as is_. However, you can modify specific variables if needed. Keep in mind that:
+
+- the default `WORKING_DIR` is `/opt/dev-scripts` - this is another directory than the location of the dev-scripts (`/opt/devel/dev-scripts`)
+  and the working directory and actual script directory are 2 entities that should be kept separate.
+- Do not use `PULL_SECRET_FILE` if you need to change the location of the pull secret. That var is outdated and will break
+  the installation. Instead, `PERSONAL_PULL_SECRET` should be used if the location of the pull secret is different from
+ `/opt/devel/dev-scripts/pull_secret.json`
+- set `OPENPE_VARIANT` if you are not using `srv6fullconfig`, e.g. `export OPENPE_VARIANT=srv6raw`.
+  The variant refers to the folder under https://github.com/openshift-kni/openperouterday0openshift/tree/main. The
+  only tested variant that will work without any changes is `srv6fullconfig`, the other variants potentially require various
+  tweaks to the dev-scripts.
 
 Deploy:
 ==============================
 
-Build the appliance according to https://github.com/openshift-kni/openperouterday0openshift/blob/main/README.md
+Start a `tmux`. Inside the `tmux` session, run the following steps or run `redeploy.sh` (see below).
+
+Build the appliance according to https://github.com/openshift-kni/openperouterday0openshift/blob/main/README.md:
 
 ```
 cd /opt/devel/openperouterday0openshift/srv6fullconfig/
 SSH_PUB_KEY="$(cat ~/.ssh/id_rsa.pub)" appliance/generate_appliance.sh /opt/devel/dev-scripts/pull_secret.json
 ```
 
-> Note: See `Full cleanup` instructions if you need to change e.g. images.
+> Note: See `Full cleanup` for cleanup instructions.
 
-Start a tmux. Inside the tmux session, run:
+Deploy the virtual environment:
 
 ```
 cd /opt/devel/dev-scripts
 deploy/devscripts/prepare-env.sh | tee /tmp/output.log
+```
+
+You can also use the following all-in-one script that does a full cleanup (including caches) plus redeployment:
+
+```
+./redeploy.sh | tee /tmp/output.log
 ```
 
 Monitoring / verification:
@@ -89,6 +114,8 @@ Monitoring / verification:
 
 The installer is configured to use the VRF for bootstrap-complete and install-complete, so you should be able to follow the install
 status without issues.
+
+In case you need to trigger the `wait-for` command manually, you can run:
 
 ```
 cd /opt/devel/dev-scripts
@@ -104,7 +131,7 @@ ip vrf exec red oc get clusterversion
 ip vrf exec red oc get co
 ```
 
-You can verify the overlay status from the FRR pod:
+You can verify the overlay status from the `FRR` pod:
 
 ```
 for cmd in "show isis neighbor" "show bgp summary" "show bgp ipv4 vpn" "show segment-routing srv6 locator"; do podman exec -it externalfrr vtysh -c "$cmd"; done
@@ -132,7 +159,7 @@ rm -f /var/lib/libvirt/images/*
 rm -f /opt/devel/dev-scripts/logs/*
 ```
 
-Remove entries from /etc/hosts:
+Remove entries from `/etc/hosts`:
 
 ```
 vim /etc/hosts
