@@ -17,7 +17,7 @@ source "config_${USER}.sh"
 
 export WORKING_DIR="${WORKING_DIR:-$ROOTDIR}"
 export CLUSTER_NAME="${CLUSTER_NAME:-sno-lab}"
-export OPENPE_VARIANT="${OPENPE_VARIANT:-srv6raw}"
+export OPENPE_VARIANT="${OPENPE_VARIANT:-srv6fullconfig}"
 
 # ============================================================
 # Step 0: Guard — fail fast if previous environment is still running

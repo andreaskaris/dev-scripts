@@ -7,7 +7,7 @@ and of `pull_secret.json`.
 
 > Note: We run everything as `root`. Additional steps are needed if you are using a local user.
 
-i. Install Centos 9 (or RHEL 9) on your server. Centos 10 / RHEL 10 are not compatible with dev-scripts. Select
+i. Install CentOS 9 (or RHEL 9) on your server. CentOS 10 / RHEL 10 are not compatible with dev-scripts. Select
 `Virtualization Host` under `Software Selection` during the installation process. Register the system during or after
 installation. The partition holding `/opt` will need a lot of disk space (minimum for the dev-scripts is 80 GB, plus
 additional space for the appliance image, etc.), so aim for 500 GB to 1 TB. Update the system after installation.
@@ -43,21 +43,7 @@ Verify:
 export CI_TOKEN='sha256~_
 ```
 
-Save the secret obtained from https://cloud.redhat.com/openshift/install/pull-secret to `/opt/devel/dev-scripts/pull_secret.json`.
-
-> Note: The location of the `pull_secret.json` can be customized with `PERSONAL_PULL_SECRET`. Do _not_ set `PULL_SECRET_FILE`.
-It's an internal variable only and is set to `$workdir/pull_secret.json` by default.
-
-iv. Install tools and prerequisites:
-
-```
-cd /opt/devel/dev-scripts
-yum install -y butane coreos-installer tmux podman pip go
-python -m pip install 'yq>=3,<4'
-./01_install_requirements.sh
-```
-
-v. Merge `config_perouter.sh` configuration with the user's and edit the config if needed:
+Merge `config_perouter.sh` configuration with the user's config:
 
 ```
 cd /opt/devel/dev-scripts
@@ -81,6 +67,19 @@ The configuration should work _as is_. However, you can modify specific variable
   The variant refers to the folder under https://github.com/openshift-kni/openperouterday0openshift/tree/main. The
   only tested variant that will work without any changes is `srv6fullconfig`, the other variants potentially require various
   tweaks to the dev-scripts.
+
+Save the secret obtained from https://cloud.redhat.com/openshift/install/pull-secret to `/opt/devel/dev-scripts/pull_secret.json`.
+
+> Note: The location of the `pull_secret.json` can be customized with `PERSONAL_PULL_SECRET`. Do _not_ set `PULL_SECRET_FILE`.
+It's an internal variable only and is set to `$workdir/pull_secret.json` by default.
+
+iv. Install tools and prerequisites:
+
+```
+cd /opt/devel/dev-scripts
+yum install -y butane coreos-installer tmux podman pip go ansible-core
+./01_install_requirements.sh
+```
 
 Deploy:
 ==============================

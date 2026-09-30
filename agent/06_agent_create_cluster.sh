@@ -734,7 +734,7 @@ case "${AGENT_E2E_TEST_BOOT_MODE}" in
 
         # Embed OpenPERouter quadlets, configs, registry mirrors, and SSH key
         # into the appliance ISO ignition (first-boot customization).
-        _openpe_variant="${OPENPE_VARIANT:-srv6raw}"
+        _openpe_variant="${OPENPE_VARIANT:-srv6fullconfig}"
         if [[ -x "${PATCH_APPLIANCE_PATH}" ]]; then
             "${PATCH_APPLIANCE_PATH}" "${appliance_iso}" "${OCP_DIR}"
         fi
